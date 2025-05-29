@@ -20,11 +20,11 @@ def create_app():
     # Cấu hình ứng dụng từ AppConfig
     app.config['SQLALCHEMY_DATABASE_URI'] = AppConfig.get_database_url()
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    app.config['JWT_SECRET_KEY'] = AppConfig.get_jwt_secret_key()
-    app.config['JWT_ACCESS_TOKEN_EXPIRES'] = AppConfig.get_jwt_access_token_expires()
-    app.config['JWT_REFRESH_TOKEN_EXPIRES'] = AppConfig.get_jwt_refresh_token_expires()
-    app.config['UPLOAD_FOLDER'] = AppConfig.get_upload_folder()
-    app.config['MAX_CONTENT_LENGTH'] = AppConfig.get_max_content_length()
+    app.config['JWT_SECRET_KEY'] = AppConfig.JWT_SECRET_KEY
+    app.config['JWT_ACCESS_TOKEN_EXPIRES'] = AppConfig.JWT_ACCESS_TOKEN_EXPIRES
+    app.config['JWT_REFRESH_TOKEN_EXPIRES'] = AppConfig.JWT_REFRESH_TOKEN_EXPIRES
+    app.config['UPLOAD_FOLDER'] = AppConfig.UPLOAD_FOLDER
+    app.config['MAX_CONTENT_LENGTH'] = AppConfig.MAX_CONTENT_LENGTH
     app.config['CORS_HEADERS'] = 'Content-Type'
 
     # Khởi tạo các extension
