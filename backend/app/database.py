@@ -1,4 +1,4 @@
-from .. import db
+from . import db
 
 def init_db():
     """Kiểm tra kết nối và khởi tạo database nếu cần"""
