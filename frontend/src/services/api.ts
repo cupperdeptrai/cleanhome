@@ -3,7 +3,7 @@ import axios, { AxiosRequestConfig, AxiosResponse } from 'axios';
 /**
  * Cấu hình mặc định cho Axios
  */
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 /**
  * Instance Axios với cấu hình mặc định
@@ -66,10 +66,11 @@ export class ApiService {
    * @param url Đường dẫn API
    * @param config Cấu hình request
    * @returns Promise<T> Dữ liệu trả về
-   */  public static async get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
+   */  
+  public static async get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
     try {
-      const response: AxiosResponse<ApiResponse<T>> = await apiClient.get(url, config);
-      return response.data.data;
+      const response = await apiClient.get(url, config);
+      return response.data;
     } catch (error: unknown) {
       this.handleError(error);
       throw error;
@@ -82,10 +83,11 @@ export class ApiService {
    * @param data Dữ liệu gửi lên
    * @param config Cấu hình request
    * @returns Promise<T> Dữ liệu trả về
-   */  public static async post<T, D = unknown>(url: string, data?: D, config?: AxiosRequestConfig): Promise<T> {
+   */  
+  public static async post<T, D = unknown>(url: string, data?: D, config?: AxiosRequestConfig): Promise<T> {
     try {
-      const response: AxiosResponse<ApiResponse<T>> = await apiClient.post(url, data, config);
-      return response.data.data;
+      const response = await apiClient.post(url, data, config);
+      return response.data;
     } catch (error: unknown) {
       this.handleError(error);
       throw error;

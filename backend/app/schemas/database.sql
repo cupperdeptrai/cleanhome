@@ -210,9 +210,8 @@ CREATE OR REPLACE FUNCTION log_new_user_registration()
 RETURNS TRIGGER AS $$
 BEGIN
   RAISE NOTICE 'Người dùng mới đã đăng ký: % (%, vai trò: %)', NEW.name, NEW.email, NEW.role;
-  IF NEW.role = 'user' THEN
-    RAISE WARNING 'Cảnh báo: Người dùng % (%) có vai trò "user". Frontend cần sửa thành "customer".';
-  END IF;
+  -- 'user' is not a valid role in our ENUM, so we're removing this check
+  -- If we need to check for incorrect roles, we should do it in the API instead
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;

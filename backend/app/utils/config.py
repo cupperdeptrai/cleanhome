@@ -45,29 +45,38 @@ class AppConfig:
         "account_name": "CÔNG TY TNHH CLEANHOME",
         "branch": "Chi nhánh TP. Hồ Chí Minh"
     }
-    
-    # Cấu hình cơ sở dữ liệu
+      # Cấu hình cơ sở dữ liệu
     @classmethod
-    def get_database_url(cls, env="development"):
+    def get_database_url(cls, env=None):
         """
-        Lấy URL cơ sở dữ liệu dựa trên môi trường
-        ---
+        Lấy URL kết nối đến cơ sở dữ liệu PostgreSQL dựa theo cấu hình trong file .env
+        
         Args:
-            env (str): Môi trường (development, testing, production)
+            env (str, optional): Môi trường (development, testing, production). 
+                                 Mặc định lấy từ biến môi trường FLASK_ENV.
         
         Returns:
-            str: URL cơ sở dữ liệu
+            str: URL kết nối cơ sở dữ liệu PostgreSQL
         """
-        env_mapping = {
-            "development": "DEV_DATABASE_URL",
-            "testing": "TEST_DATABASE_URL",
-            "production": "DATABASE_URL"
-        }
-        env_var = env_mapping.get(env, "DEV_DATABASE_URL")
+        if env is None:
+            env = os.environ.get("FLASK_ENV", "development")
+            
+        # Nếu đã có URL đầy đủ trong biến môi trường, sử dụng nó
+        if env == "development" and os.environ.get("DEV_DATABASE_URL"):
+            return os.environ.get("DEV_DATABASE_URL")
+        elif env == "testing" and os.environ.get("TEST_DATABASE_URL"):
+            return os.environ.get("TEST_DATABASE_URL")
+        elif env == "production" and os.environ.get("DATABASE_URL"):
+            return os.environ.get("DATABASE_URL")
         
-        # URL mặc định cho PostgreSQL
-        default_url = f"postgresql://postgres:postgres@localhost:5432/cleanhome_{env}"
-        return os.environ.get(env_var, default_url)
+        # Nếu không, xây dựng URL từ các thành phần riêng lẻ
+        db_name = os.environ.get("DB_NAME", f"cleanhome_{env}")
+        db_user = os.environ.get("DB_USER", "postgres")
+        db_password = os.environ.get("DB_PASSWORD", "5432")
+        db_host = os.environ.get("DB_HOST", "localhost")
+        db_port = os.environ.get("DB_PORT", "5432")
+        
+        return f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
     
     # Cấu hình JWT
     JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "dev-jwt-secret-key-change-in-production")

@@ -19,6 +19,7 @@ def register():
     
     # Ghi log thông tin đăng ký
     current_app.logger.info(f"Nhận yêu cầu đăng ký từ email: {data.get('email', 'không có email')}")
+    current_app.logger.info(f"Dữ liệu đăng ký: {data}")
     
     # Kiểm tra các trường bắt buộc
     required_fields = ['email', 'password', 'name']
@@ -79,8 +80,9 @@ def register():
         }), 201
     except Exception as e:
         current_app.logger.error(f"Lỗi khi đăng ký người dùng: {str(e)}")
+        current_app.logger.exception("Chi tiết lỗi:")
         db.session.rollback()
-        return jsonify({'message': 'Đã xảy ra lỗi khi đăng ký, vui lòng thử lại sau'}), 500
+        return jsonify({'message': f'Đã xảy ra lỗi khi đăng ký: {str(e)}'}), 500
 
 @auth_bp.route('/login', methods=['POST'])
 def login():

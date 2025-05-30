@@ -45,7 +45,8 @@ export interface AuthTokens {
  */
 export interface AuthResponse {
   user: User;
-  tokens: AuthTokens;
+  token?: string;
+  message?: string;
 }
 
 /**
@@ -61,7 +62,10 @@ export class AuthService {
   public static async login(data: LoginData): Promise<AuthResponse> {
     try {
       const response = await ApiService.post<AuthResponse>('/auth/login', data);
-      this.setAuthData(response);
+      if (response.token) {
+        localStorage.setItem('token', response.token);
+        localStorage.setItem('user', JSON.stringify(response.user));
+      }
       return response;
     } catch (error) {
       console.error('Login error:', error);
@@ -77,7 +81,10 @@ export class AuthService {
   public static async register(data: RegisterData): Promise<AuthResponse> {
     try {
       const response = await ApiService.post<AuthResponse>('/auth/register', data);
-      this.setAuthData(response);
+      if (response.token) {
+        localStorage.setItem('token', response.token);
+        localStorage.setItem('user', JSON.stringify(response.user));
+      }
       return response;
     } catch (error) {
       console.error('Register error:', error);
@@ -178,25 +185,21 @@ export class AuthService {
     const userStr = localStorage.getItem('user');
     return userStr ? JSON.parse(userStr) : null;
   }
-
   /**
    * Lưu dữ liệu xác thực
    * @param data Dữ liệu xác thực
    */
   private static setAuthData(data: AuthResponse): void {
-    localStorage.setItem('token', data.tokens.accessToken);
-    if (data.tokens.refreshToken) {
-      localStorage.setItem('refreshToken', data.tokens.refreshToken);
+    if (data.token) {
+      localStorage.setItem('token', data.token);
     }
     localStorage.setItem('user', JSON.stringify(data.user));
   }
-
   /**
    * Xóa dữ liệu xác thực
    */
   private static clearAuthData(): void {
     localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
   }
 }

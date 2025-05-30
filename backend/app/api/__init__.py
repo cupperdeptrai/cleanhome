@@ -3,3 +3,7 @@ from .users import users_bp
 from .services import services_bp
 from .bookings import bookings_bp
 from .promotions import promotions_bp
+from .home import home_bp
+from .payments import payments_bp
+from .reviews import reviews_bp
+from .notifications import notifications_bp

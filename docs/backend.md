@@ -278,17 +278,6 @@ flask run
 python run.py
 ```
 
-### Chạy với Docker
-
-1. Build Docker image:
-```bash
-docker build -t cleanhome-backend .
-```
-
-2. Chạy container:
-```bash
-docker run -p 5000:5000 cleanhome-backend
-```
 
 ## Triển khai
 

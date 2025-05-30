@@ -95,12 +95,12 @@ const Login: React.FC = () => {
           </p>
         </div>
 
-        <div className="mt-4 text-center text-sm text-gray-600">
+        {/* <div className="mt-4 text-center text-sm text-gray-600">
           <p>Tài khoản demo:</p>
           <p>Email: user@example.com / staff@example.com / admin@example.com</p>
           <p>Mật khẩu: password</p>
           <p className="mt-1 font-semibold">Token sẽ được lưu trong 30 ngày</p>
-        </div>
+        </div> */}
       </div>
     </div>
   );
