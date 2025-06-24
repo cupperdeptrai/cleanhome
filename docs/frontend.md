@@ -217,31 +217,6 @@ Sử dụng React Router v7 để quản lý routing với hai layout chính:
 - Sử dụng các định dạng hiện đại (WebP)
 - Responsive images
 
-## Testing
-
-### Unit Testing
-- Jest cho unit tests
-- Testing Library cho component tests
-
-### Integration Testing
-- Testing user flows
-- API mocking
-
-### E2E Testing
-- Cypress cho end-to-end testing
-
-## Deployment
-
-### Build Process
-- Vite build cho production
-- Code minification và optimization
-- Environment variables
-
-### CI/CD
-- GitHub Actions hoặc GitLab CI
-- Automated testing
-- Automated deployment
-
 ## Hướng dẫn phát triển
 
 ### Cài đặt

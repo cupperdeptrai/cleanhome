@@ -1,76 +1,113 @@
-from datetime import datetime
-from sqlalchemy.dialects.postgresql import UUID
+"""Service models for CleanHome application"""
+
 import uuid
-from ..extensions import db
+from datetime import datetime
+from sqlalchemy import Enum
+from sqlalchemy.dialects.postgresql import UUID
+from app.extensions import db
+
+# Define ENUM types to match database
+SERVICE_STATUSES = ['active', 'inactive', 'draft']
 
 class ServiceCategory(db.Model):
-    """Model cho bảng service_categories - danh mục dịch vụ vệ sinh"""
+    """Service category model"""
     __tablename__ = 'service_categories'
     
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = db.Column(db.String(100), nullable=False)
-    description = db.Column(db.Text, nullable=True)
-    image = db.Column(db.Text, nullable=True)
-    # status sử dụng ENUM trong PostgreSQL: 'active', 'inactive'
-    status = db.Column(db.String(20), default='active')
-    created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    description = db.Column(db.Text)
+    image = db.Column(db.Text)
+    status = db.Column(Enum(*SERVICE_STATUSES, name='service_status'), nullable=False, default='active')
     
-    # Relationships - Quan hệ với các dịch vụ
-    services = db.relationship('Service', backref='category', lazy='dynamic')
-    
-    def to_dict(self):
-        """Chuyển đổi đối tượng category thành dictionary để trả về qua API"""
-        return {
-            'id': str(self.id),
-            'name': self.name,
-            'description': self.description,
-            'image': self.image,
-            'status': self.status,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
-        }
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     def __repr__(self):
-        """Hiển thị đại diện của đối tượng ServiceCategory"""
         return f'<ServiceCategory {self.name}>'
 
 
 class Service(db.Model):
-    """Model cho bảng services - dịch vụ vệ sinh"""
+    """Service model"""
     __tablename__ = 'services'
     
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    category_id = db.Column(UUID(as_uuid=True), db.ForeignKey('service_categories.id'), nullable=False)
+    category_id = db.Column(UUID(as_uuid=True), db.ForeignKey('service_categories.id'), nullable=True)
     name = db.Column(db.String(100), nullable=False)
-    description = db.Column(db.Text, nullable=True)
+    slug = db.Column(db.String(150), nullable=False, unique=True)
+    short_description = db.Column(db.String(255))
+    description = db.Column(db.Text)
     price = db.Column(db.Numeric(10, 2), nullable=False)
-    duration = db.Column(db.Integer, nullable=False)  # Thời gian thực hiện (phút)
-    image = db.Column(db.Text, nullable=True)
-    # status sử dụng ENUM trong PostgreSQL: 'active', 'inactive'
-    status = db.Column(db.String(20), default='active')
-    created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    sale_price = db.Column(db.Numeric(10, 2))
+    duration = db.Column(db.Integer, nullable=False)  # Duration in minutes
+    unit = db.Column(db.String(50), default='Lần')
+    thumbnail = db.Column(db.Text)
+    is_featured = db.Column(db.Boolean, default=False)
+    min_area = db.Column(db.Numeric(10, 2))
+    max_area = db.Column(db.Numeric(10, 2))
+    price_per_area = db.Column(db.Numeric(10, 2))
+    staff_count = db.Column(db.Integer, default=1)
+    status = db.Column(Enum(*SERVICE_STATUSES, name='service_status'), nullable=False, default='active')
     
-    # Relationships - Quan hệ với đơn hàng 
-    booking_items = db.relationship('BookingItem', backref='service', lazy='dynamic')
-    
-    def to_dict(self):
-        """Chuyển đổi đối tượng service thành dictionary để trả về qua API"""
-        return {
-            'id': str(self.id),
-            'category_id': str(self.category_id),
-            'name': self.name,
-            'description': self.description,
-            'price': float(self.price),
-            'duration': self.duration,
-            'image': self.image,
-            'status': self.status,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
-            'category': self.category.to_dict() if self.category else None
-        }
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     def __repr__(self):
-        """Hiển thị đại diện của đối tượng Service"""
         return f'<Service {self.name}>'
+
+
+class Area(db.Model):
+    """Area model"""
+    __tablename__ = 'areas'
+    
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = db.Column(db.String(100), nullable=False)
+    district = db.Column(db.String(100))
+    city = db.Column(db.String(100))
+    delivery_fee = db.Column(db.Numeric(10, 2), default=0)
+    status = db.Column(db.String(20), nullable=False, default='active')  # active, inactive
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<Area {self.name}>'
+
+
+class ServiceArea(db.Model):
+    """Service area mapping model"""
+    __tablename__ = 'service_areas'
+    
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    service_id = db.Column(UUID(as_uuid=True), db.ForeignKey('services.id'), nullable=False)
+    area_id = db.Column(UUID(as_uuid=True), db.ForeignKey('areas.id'), nullable=False)
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<ServiceArea {self.service_id} - {self.area_id}>'
+
+
+class Review(db.Model):
+    """Review model"""
+    __tablename__ = 'reviews'
+    
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    booking_id = db.Column(UUID(as_uuid=True), db.ForeignKey('bookings.id'), nullable=False)
+    user_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), nullable=False)
+    service_id = db.Column(UUID(as_uuid=True), db.ForeignKey('services.id'), nullable=False)
+    staff_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), nullable=True)
+    
+    rating = db.Column(db.Integer, nullable=False)  # 1-5 stars
+    comment = db.Column(db.Text)
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<Review {self.id}: {self.rating} stars>'
+

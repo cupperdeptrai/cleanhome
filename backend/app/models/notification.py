@@ -1,35 +1,54 @@
+"""Notification models for CleanHome application"""
+
+import uuid
 from datetime import datetime
 from sqlalchemy.dialects.postgresql import UUID
-import uuid
-from ..extensions import db
+from app.extensions import db
 
 class Notification(db.Model):
-    """Model cho bảng notifications - thông báo cho người dùng"""
+    """Notification model"""
     __tablename__ = 'notifications'
     
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), nullable=False)
+    
     title = db.Column(db.String(255), nullable=False)
     message = db.Column(db.Text, nullable=False)
-    type = db.Column(db.String(50), nullable=True)  # Loại thông báo: 'booking', 'system', 'promotion', v.v.
+    type = db.Column(db.String(50))  # booking, payment, promotion, system
     is_read = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
     
-    # Relationship with user
-    user = db.relationship('User', backref=db.backref('notifications', lazy='dynamic'))
+    # Optional reference to related objects
+    reference_id = db.Column(UUID(as_uuid=True))  # ID of related booking, payment, etc.
+    reference_type = db.Column(db.String(50))  # booking, payment, etc.
     
-    def to_dict(self):
-        """Chuyển đổi đối tượng notification thành dictionary để trả về qua API"""
-        return {
-            'id': str(self.id),
-            'user_id': str(self.user_id),
-            'title': self.title,
-            'message': self.message,
-            'type': self.type,
-            'is_read': self.is_read,
-            'created_at': self.created_at.isoformat() if self.created_at else None
-        }
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     def __repr__(self):
-        """Hiển thị đại diện của đối tượng Notification"""
-        return f'<Notification {self.id}>' 
+        return f'<Notification {self.id}: {self.title}>'
+
+
+class NotificationSetting(db.Model):
+    """Notification settings model"""
+    __tablename__ = 'notification_settings'
+    
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), nullable=False)
+    
+    # Notification preferences
+    email_notifications = db.Column(db.Boolean, default=True)
+    sms_notifications = db.Column(db.Boolean, default=False)
+    push_notifications = db.Column(db.Boolean, default=True)
+    
+    # Specific notification types
+    booking_notifications = db.Column(db.Boolean, default=True)
+    payment_notifications = db.Column(db.Boolean, default=True)
+    promotion_notifications = db.Column(db.Boolean, default=True)
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<NotificationSetting {self.user_id}>'
+

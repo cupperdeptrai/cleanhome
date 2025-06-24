@@ -77,12 +77,6 @@ CleanHome được xây dựng theo mô hình client-server với kiến trúc 3
 - **Migration**: Alembic
 - **Backup**: Automated daily backups
 
-### DevOps
-- **Version Control**: Git
-- **CI/CD**: GitHub Actions
-- **Containerization**: Docker
-- **Hosting**: AWS/GCP/Azure
-- **Monitoring**: Prometheus, Grafana
 
 ## Tính năng chính
 
@@ -238,31 +232,6 @@ CleanHome được xây dựng theo mô hình client-server với kiến trúc 3
 - CSRF protection
 - Rate limiting
 
-### Compliance
-- GDPR compliance
-- Data privacy
-- Secure payment processing
-
-## Triển khai
-
-### Môi trường phát triển
-- Local development environment
-- Development server
-- Staging server
-
-### Môi trường sản xuất
-- Production server
-- Load balancing
-- CDN cho static assets
-- Database replication
-
-### Monitoring & Maintenance
-- Application monitoring
-- Error tracking
-- Performance monitoring
-- Regular backups
-- Security updates
-
 ## Roadmap
 
 ### Phase 1: MVP (Minimum Viable Product)
@@ -279,12 +248,6 @@ CleanHome được xây dựng theo mô hình client-server với kiến trúc 3
 - Báo cáo và thống kê
 - Quản lý nhân viên nâng cao
 
-### Phase 3: Advanced Features
-- Mobile app (React Native)
-- Tích hợp chatbot
-- Hệ thống thông báo realtime
-- Tích hợp với các nền tảng khác
-- Analytics và machine learning
 
 ## Kết luận
 

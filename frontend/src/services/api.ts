@@ -36,12 +36,45 @@ apiClient.interceptors.request.use(
  */
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
-    // Xử lý lỗi 401 (Unauthorized) - đăng xuất người dùng
-    if (error.response && error.response.status === 401) {
+  async (error) => {
+    const originalRequest = error.config;
+    
+    // Xử lý lỗi 401 (Unauthorized) - thử refresh token
+    if (error.response && error.response.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+      
+      // Kiểm tra nếu có refresh token
+      const refreshToken = localStorage.getItem('refresh_token');
+      
+      if (refreshToken) {
+        try {
+          // Thử refresh token
+          const response = await axios.post(`${API_URL}/auth/refresh`, {
+            refresh_token: refreshToken
+          });
+          
+          if (response.data && response.data.access_token) {
+            const newToken = response.data.access_token;
+            localStorage.setItem('token', newToken);
+            
+            // Cập nhật header và thử lại request
+            originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
+            return apiClient(originalRequest);
+          }
+        } catch (refreshError) {
+          console.error('❌ Refresh token failed:', refreshError);
+        }
+      }
+      
+      // Nếu refresh thất bại hoặc không có refresh token, đăng xuất
       localStorage.removeItem('token');
+      localStorage.removeItem('refresh_token');
       localStorage.removeItem('user');
-      window.location.href = '/login';
+      
+      // Chỉ redirect nếu không phải trang login
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login?message=session_expired';
+      }
     }
     return Promise.reject(error);
   }
@@ -66,8 +99,7 @@ export class ApiService {
    * @param url Đường dẫn API
    * @param config Cấu hình request
    * @returns Promise<T> Dữ liệu trả về
-   */  
-  public static async get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
+   */  public static async get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
     try {
       const response = await apiClient.get(url, config);
       return response.data;
@@ -102,8 +134,12 @@ export class ApiService {
    * @returns Promise<T> Dữ liệu trả về
    */  public static async put<T, D = unknown>(url: string, data?: D, config?: AxiosRequestConfig): Promise<T> {
     try {
-      const response: AxiosResponse<ApiResponse<T>> = await apiClient.put(url, data, config);
-      return response.data.data;
+      const response = await apiClient.put(url, data, config);
+      // Kiểm tra xem response có wrapper data hay không
+      if (response.data && typeof response.data === 'object' && 'data' in response.data) {
+        return response.data.data;
+      }
+      return response.data;
     } catch (error: unknown) {
       this.handleError(error);
       throw error;
@@ -117,8 +153,12 @@ export class ApiService {
    * @returns Promise<T> Dữ liệu trả về
    */  public static async delete<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
     try {
-      const response: AxiosResponse<ApiResponse<T>> = await apiClient.delete(url, config);
-      return response.data.data;
+      const response = await apiClient.delete(url, config);
+      // Kiểm tra xem response có wrapper data hay không
+      if (response.data && typeof response.data === 'object' && 'data' in response.data) {
+        return response.data.data;
+      }
+      return response.data;
     } catch (error: unknown) {
       this.handleError(error);
       throw error;

@@ -1,31 +1,92 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Booking } from '../../types';
 import Card from './Card';
 import Button from './Button';
+import ReviewModal from '../modals/ReviewModal';
+import BookingDetailsModal from '../modals/BookingDetailsModal';
+import CancelBookingModal from '../modals/CancelBookingModal';
+import { ReviewService } from '../../services/review.service';
+import { BookingService } from '../../services/booking.service';
+import { formatDateTime, formatDate } from '../../utils/dateTime';
 
 interface BookingCardProps {
   booking: Booking;
+  onBookingUpdate?: () => void; // Callback để refresh danh sách sau khi cập nhật
 }
 
-const BookingCard: React.FC<BookingCardProps> = ({ booking }) => {
+const BookingCard: React.FC<BookingCardProps> = ({ booking, onBookingUpdate }) => {
+  const navigate = useNavigate();
+  
+  // State cho các modal
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+
+  // Xử lý gửi đánh giá
+  const handleSubmitReview = async (rating: number, comment: string) => {
+    try {
+      await ReviewService.createReview({
+        bookingId: booking.id,
+        rating,
+        comment
+      });
+      alert('Đánh giá đã được gửi thành công!');
+      if (onBookingUpdate) {
+        onBookingUpdate(); // Refresh danh sách để cập nhật trạng thái
+      }
+    } catch (error) {
+      console.error('Lỗi khi gửi đánh giá:', error);
+      throw error; // Re-throw để modal xử lý
+    }
+  };
+
+  // Xử lý hủy đơn
+  const handleCancelBooking = async (reason?: string) => {
+    try {
+      await BookingService.cancelBooking(booking.id, reason);
+      alert('Đơn hàng đã được hủy thành công!');
+      if (onBookingUpdate) {
+        onBookingUpdate(); // Refresh danh sách để cập nhật trạng thái
+      }
+    } catch (error) {
+      console.error('Lỗi khi hủy đơn:', error);
+      throw error; // Re-throw để modal xử lý
+    }
+  };
+
+  // Xử lý đặt lại dịch vụ
+  const handleRebook = () => {
+    // Điều hướng đến trang đặt lịch với thông tin dịch vụ đã chọn
+    navigate('/booking', { 
+      state: { 
+        serviceId: booking.serviceId,
+        serviceName: booking.serviceName,
+        previousBooking: booking
+      } 
+    });
+  };
+  // Format địa chỉ hiển thị đẹp hơn
+  const formatAddress = (address: string) => {
+    if (!address) return '';
+    
+    // Tách địa chỉ thành các phần và định dạng lại
+    const parts = address.split(', ').map(part => part.trim()).filter(Boolean);
+    
+    // Nếu địa chỉ quá dài, rút gọn để hiển thị
+    if (parts.length > 4) {
+      return parts.slice(0, 2).join(', ') + '... ' + parts.slice(-2).join(', ');
+    }
+    
+    return address;
+  };
+  
   // Format giá tiền
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('vi-VN', {
       style: 'currency',
       currency: 'VND',
     }).format(price);
-  };
-  
-  // Format ngày tháng
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat('vi-VN', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    }).format(date);
   };
   
   // Hiển thị trạng thái đơn hàng
@@ -80,11 +141,13 @@ const BookingCard: React.FC<BookingCardProps> = ({ booking }) => {
           </div>
           <div>
             <p className="text-sm font-medium text-gray-500">Địa chỉ</p>
-            <p className="text-sm text-gray-900">{booking.address}</p>
+            <p className="text-sm text-gray-900" title={booking.address}>
+              {formatAddress(booking.address || '')}
+            </p>
           </div>
           <div>
             <p className="text-sm font-medium text-gray-500">Giá</p>
-            <p className="text-sm text-gray-900">{formatPrice(booking.price)}</p>
+            <p className="text-sm text-gray-900">{formatPrice(booking.totalAmount || booking.price || 0)}</p>
           </div>
         </div>
         
@@ -97,34 +160,71 @@ const BookingCard: React.FC<BookingCardProps> = ({ booking }) => {
         
         <div className="border-t border-gray-200 pt-4 flex flex-col sm:flex-row justify-between items-center">
           <p className="text-sm text-gray-500 mb-2 sm:mb-0">
-            Đặt lịch vào: {new Date(booking.createdAt).toLocaleString('vi-VN')}
+            Đặt lịch vào: {formatDateTime(booking.createdAt || '')}
           </p>
           
           <div className="flex space-x-3">
             {booking.status === 'pending' && (
-              <Button variant="danger" size="sm">
+              <Button 
+                variant="danger" 
+                size="sm"
+                onClick={() => setIsCancelModalOpen(true)}
+              >
                 Hủy đơn
               </Button>
             )}
             
             {booking.status === 'completed' && (
-              <Button variant="outline" size="sm">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setIsReviewModalOpen(true)}
+              >
                 Đánh giá
               </Button>
             )}
             
-            <Button variant="outline" size="sm">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setIsDetailsModalOpen(true)}
+            >
               Chi tiết
             </Button>
             
             {booking.status === 'completed' && (
-              <Button variant="outline" size="sm">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleRebook}
+              >
                 Đặt lại
               </Button>
             )}
           </div>
         </div>
       </div>
+
+      {/* Modals */}
+      <ReviewModal
+        isOpen={isReviewModalOpen}
+        onClose={() => setIsReviewModalOpen(false)}
+        booking={booking}
+        onSubmit={handleSubmitReview}
+      />
+
+      <BookingDetailsModal
+        isOpen={isDetailsModalOpen}
+        onClose={() => setIsDetailsModalOpen(false)}
+        booking={booking}
+      />
+
+      <CancelBookingModal
+        isOpen={isCancelModalOpen}
+        onClose={() => setIsCancelModalOpen(false)}
+        booking={booking}
+        onConfirm={handleCancelBooking}
+      />
     </Card>
   );
 };

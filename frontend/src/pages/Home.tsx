@@ -1,9 +1,25 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useServiceContext } from '../context/ServiceContext';
 
 const Home: React.FC = () => {
+  const { newServiceBanner, clearBanner, services } = useServiceContext();
+
+  // Lấy danh sách dịch vụ nổi bật (tối đa 6 dịch vụ đầu tiên)
+  const featuredServices = services.filter(service => service.isActive).slice(0, 6);
+
   return (
     <div className="space-y-12">
+      {/* Banner dịch vụ mới */}
+      {newServiceBanner && (
+        <div className="bg-green-100 border-l-4 border-green-500 text-green-800 p-4 rounded relative flex items-center justify-between max-w-3xl mx-auto mt-4">
+          <div>
+            <strong>Dịch vụ mới:</strong> <span className="font-semibold">{newServiceBanner.name}</span> đã được thêm!
+            <span className="ml-2 text-gray-600">{newServiceBanner.description}</span>
+          </div>
+          <button onClick={clearBanner} className="ml-4 text-green-700 hover:text-green-900 font-bold text-xl" aria-label="Đóng">×</button>
+        </div>
+      )}
       {/* Hero Section */}
 
       <section className="relative text-white rounded-lg overflow-hidden">
@@ -34,78 +50,86 @@ const Home: React.FC = () => {
         </div>
       </section>
       
-      {/* <section className="bg-blue-600 text-white rounded-lg p-8 md:p-12">
-        <div className="max-w-3xl mx-auto text-center">
-          
-          <h1 className="text-3xl md:text-5xl font-bold mb-6">Dịch vụ vệ sinh nhà cửa chuyên nghiệp</h1>
-          <p className="text-lg md:text-xl mb-8">
-            Giải pháp vệ sinh toàn diện cho ngôi nhà của bạn với đội ngũ nhân viên chuyên nghiệp, 
-            trang thiết bị hiện đại và quy trình làm việc chuẩn quốc tế.
-          </p>
-          <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <Link to="/services" className="bg-white text-blue-600 hover:bg-blue-50 px-6 py-3 rounded-lg font-medium text-lg">
-              Xem dịch vụ
-            </Link>
-            <Link to="/booking" className="bg-blue-700 hover:bg-blue-800 text-white px-6 py-3 rounded-lg font-medium text-lg">
-              Đặt lịch ngay
-            </Link>
-          </div>
-        </div>
-      </section> */}
 
       {/* Services Section */}
       <section>
         <div className="text-center mb-10">
-          <h2 className="text-3xl font-bold mb-4">Dịch vụ của chúng tôi</h2>
+          <h2 className="text-3xl font-bold mb-4">Dịch vụ nổi bật</h2>
           <p className="text-gray-600 max-w-2xl mx-auto">
             Chúng tôi cung cấp đa dạng các dịch vụ vệ sinh chuyên nghiệp, 
             đáp ứng mọi nhu cầu từ nhà ở đến văn phòng công ty.
           </p>
+          <div className="mt-4 flex justify-center items-center space-x-6 text-sm text-gray-500">
+            <span>🏆 {services.filter(s => s.isActive).length} dịch vụ đang hoạt động</span>
+            <span>⭐ Đánh giá 4.8/5</span>
+            <span>✅ Cam kết chất lượng</span>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {[
-            {
-              title: 'Vệ sinh nhà ở',
-              description: 'Dịch vụ vệ sinh toàn diện cho căn hộ, nhà phố với các gói linh hoạt theo nhu cầu.',
-              icon: '🏠'
-            },
-            {
-              title: 'Vệ sinh văn phòng',
-              description: 'Giải pháp vệ sinh chuyên nghiệp cho văn phòng, công ty với lịch trình linh hoạt.',
-              icon: '🏢'
-            },
-            {
-              title: 'Vệ sinh sau xây dựng',
-              description: 'Dọn dẹp, vệ sinh chuyên sâu sau khi hoàn thành xây dựng hoặc sửa chữa.',
-              icon: '🏗️'
-            },
-            {
-              title: 'Giặt thảm, sofa',
-              description: 'Làm sạch chuyên sâu cho thảm, ghế sofa, nệm bằng công nghệ hiện đại.',
-              icon: '🛋️'
-            },
-            {
-              title: 'Vệ sinh kính',
-              description: 'Làm sạch kính cửa sổ, kính mặt tiền cao tầng với thiết bị chuyên dụng.',
-              icon: '🪟'
-            },
-            {
-              title: 'Diệt khuẩn, khử mùi',
-              description: 'Dịch vụ diệt khuẩn, khử mùi chuyên nghiệp bằng công nghệ phun sương.',
-              icon: '🧪'
-            }
-          ].map((service, index) => (
-            <div key={index} className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
-              <div className="text-4xl mb-4">{service.icon}</div>
-              <h3 className="text-xl font-semibold mb-2">{service.title}</h3>
-              <p className="text-gray-600 mb-4">{service.description}</p>
-              <Link to="/services" className="text-blue-600 hover:text-blue-800 font-medium">
-                Tìm hiểu thêm →
-              </Link>
+        {featuredServices.length > 0 ? (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {featuredServices.map((service) => (
+                <div key={service.id} className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
+                  <div className="mb-4">
+                    <img 
+                      src={service.image} 
+                      alt={service.name}
+                      className="w-full h-48 object-cover rounded-lg"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80';
+                      }}
+                    />
+                  </div>
+                  <div className="mb-2">
+                    <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
+                      {service.category}
+                    </span>
+                  </div>
+                  <h3 className="text-xl font-semibold mb-2">{service.name}</h3>
+                  <p className="text-gray-600 mb-4 line-clamp-2">{service.description}</p>
+                  <div className="flex justify-between items-center mb-4">
+                    <span className="text-lg font-bold text-green-600">{service.price.toLocaleString()}đ</span>
+                    <span className="text-sm text-gray-500">⏱ {service.duration} phút</span>
+                  </div>
+                  <Link 
+                    to={`/booking?service=${service.id}`} 
+                    className="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2 rounded-lg font-medium inline-block text-center w-full transition-colors"
+                  >
+                    Đặt ngay
+                  </Link>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+
+            {/* Nút xem tất cả nếu có nhiều dịch vụ */}
+            {services.filter(service => service.isActive).length > 6 && (
+              <div className="text-center mt-8">
+                <Link 
+                  to="/services" 
+                  className="bg-white border-2 border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white px-6 py-3 rounded-lg font-medium inline-block transition-colors"
+                >
+                  Xem tất cả {services.filter(service => service.isActive).length} dịch vụ →
+                </Link>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="text-center py-12">
+            <div className="text-6xl mb-4">🔧</div>
+            <h3 className="text-xl font-semibold mb-2">Đang cập nhật dịch vụ</h3>
+            <p className="text-gray-600 mb-6">
+              Chúng tôi đang chuẩn bị các dịch vụ tuyệt vời cho bạn. Vui lòng quay lại sau!
+            </p>
+            <Link 
+              to="/services" 
+              className="bg-blue-600 text-white hover:bg-blue-700 px-6 py-3 rounded-lg font-medium inline-block"
+            >
+              Xem danh sách dịch vụ
+            </Link>
+          </div>
+        )}
       </section>
 
       {/* How It Works */}

@@ -23,6 +23,39 @@ body {
   min-height: 100vh;
 }
 
+/* Utility for line clamp */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Service card fixed size */
+.service-card-fixed {
+  width: 480px;
+  height: 474px;
+}
+
+/* Responsive adjustments for service cards */
+@media (max-width: 1023px) {
+  .service-card-fixed {
+    width: 100%;
+    max-width: 480px;
+    height: 474px;
+  }
+}
+
+@media (max-width: 768px) {
+  .service-card-fixed {
+    width: 100%;
+    max-width: 400px;
+    height: auto;
+    min-height: 450px;
+  }
+}
+
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;

@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import MainLayout from '../components/Layout/MainLayout';
+// import MainLayout from '../components/Layout/MainLayout';
 import Card from '../components/UI/Card';
 import Button from '../components/UI/Button';
 import Input from '../components/UI/Input';
+import AvatarUpload from '../components/UI/AvatarUpload';
 import { Activity } from '../types';
 
 // Dữ liệu hoạt động mẫu
@@ -47,7 +48,7 @@ const mockActivities: Activity[] = [
 ];
 
 const Profile = () => {
-  const { user, loading, error, updateProfile } = useAuth();
+  const { user, updateUser } = useAuth(); // Thêm updateUser từ context
   const navigate = useNavigate();
   const { section = 'personal' } = useParams<{ section?: string }>();
   
@@ -56,18 +57,12 @@ const Profile = () => {
   const [phone, setPhone] = useState<string>('');
   const [address, setAddress] = useState<string>('');
   const [activities, setActivities] = useState<Activity[]>([]);
-  
-  const [currentPassword, setCurrentPassword] = useState<string>('');
-  const [newPassword, setNewPassword] = useState<string>('');
-  const [confirmPassword, setConfirmPassword] = useState<string>('');
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState<boolean>(false);
   
   const [formErrors, setFormErrors] = useState<{
     name?: string;
     phone?: string;
     address?: string;
-    currentPassword?: string;
-    newPassword?: string;
-    confirmPassword?: string;
   }>({});
   
   const [successMessage, setSuccessMessage] = useState<string>('');
@@ -88,99 +83,136 @@ const Profile = () => {
     // Giả lập API call để lấy hoạt động của người dùng
     setActivities(mockActivities);
   }, [user, navigate]);
-  
-  // Xử lý cập nhật thông tin cá nhân
+
+  // Xử lý upload avatar - cải thiện để không reload trang
+  const handleAvatarChange = async (file: File) => {
+    try {
+      setIsUploadingAvatar(true);
+      setFormErrors({}); // Xóa lỗi cũ
+      
+      console.log('🔄 Bắt đầu upload avatar cho user:', user?.id);
+      
+      const formData = new FormData();
+      formData.append('avatar', file);
+      
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:5000/api/users/${user?.id}/avatar`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+      
+      const responseData = await response.json();
+      console.log('📥 Phản hồi upload avatar:', responseData);
+      
+      if (response.ok) {
+        setSuccessMessage('✅ Cập nhật ảnh đại diện thành công!');
+        
+        // Cập nhật avatar trong context để hiển thị ngay lập tức
+        updateUser({ avatar: responseData.data.avatar_url });
+        
+        // Xóa thông báo sau 3 giây mà không reload trang
+        setTimeout(() => {
+          setSuccessMessage('');
+        }, 3000);
+        
+        console.log('✅ Avatar đã được cập nhật thành công');
+      } else {
+        console.error('❌ Lỗi upload avatar:', responseData);
+        setFormErrors({ name: responseData.error || 'Lỗi khi tải lên ảnh đại diện' });
+      }
+    } catch (error) {
+      console.error('❌ Exception khi upload avatar:', error);
+      setFormErrors({ name: 'Lỗi kết nối khi tải lên ảnh đại diện. Vui lòng thử lại.' });
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+   // Xử lý cập nhật thông tin cá nhân
   const handleUpdateProfile = async () => {
-    // Kiểm tra form
+    // Kiểm tra validation form
     const errors: {
       name?: string;
       phone?: string;
       address?: string;
     } = {};
     
-    if (!name) {
+    // Validate họ tên
+    if (!name.trim()) {
       errors.name = 'Vui lòng nhập họ tên';
     }
     
-    if (!phone) {
+    // Validate số điện thoại
+    if (!phone.trim()) {
       errors.phone = 'Vui lòng nhập số điện thoại';
-    } else if (!/^[0-9]{10,11}$/.test(phone)) {
-      errors.phone = 'Số điện thoại không hợp lệ';
+    } else if (!/^0[3-9]\d{8}$/.test(phone.replace(/\s+/g, ''))) {
+      errors.phone = 'Số điện thoại phải có định dạng 10 chữ số bắt đầu bằng 0 (ví dụ: 0912345678)';
     }
     
-    if (!address) {
+    // Validate địa chỉ
+    if (!address.trim()) {
       errors.address = 'Vui lòng nhập địa chỉ';
     }
     
+    // Hiển thị lỗi nếu có
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
       return;
     }
+    
+    // Xóa lỗi cũ
+    setFormErrors({});
     
     try {
-      // Cập nhật thông tin
-      await updateProfile({
-        name,
-        phone,
-        address
+      console.log('🔄 Bắt đầu cập nhật thông tin user:', user?.id);
+      
+      // Gọi API cập nhật thông tin người dùng
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:5000/api/users/${user?.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: name.trim(),
+          phone: phone.trim(),
+          address: address.trim()
+        })
       });
-      
-      setSuccessMessage('Cập nhật thông tin thành công');
-      
-      // Xóa thông báo thành công sau 3 giây
-      setTimeout(() => {
-        setSuccessMessage('');
-      }, 3000);
-    } catch (err) {
-      // Lỗi đã được xử lý trong context
+
+      const responseData = await response.json();
+      console.log('📥 Phản hồi cập nhật thông tin:', responseData);
+
+      if (response.ok) {
+        setSuccessMessage('✅ Cập nhật thông tin thành công!');
+        
+        // Cập nhật thông tin trong context để hiển thị ngay lập tức
+        updateUser({
+          name: name.trim(),
+          phone: phone.trim(),
+          address: address.trim()
+        });
+        
+        // Xóa thông báo thành công sau 3 giây
+        setTimeout(() => {
+          setSuccessMessage('');
+        }, 3000);
+        
+        console.log('✅ Thông tin đã được cập nhật thành công');
+      } else {
+        console.error('❌ Lỗi cập nhật thông tin:', responseData);
+        setFormErrors({ name: responseData.error || 'Lỗi khi cập nhật thông tin' });
+      }
+    } catch (error) {
+      console.error('❌ Exception khi cập nhật thông tin:', error);
+      setFormErrors({ name: 'Lỗi kết nối khi cập nhật thông tin. Vui lòng thử lại.' });
     }
   };
   
-  // Xử lý đổi mật khẩu
-  const handleChangePassword = () => {
-    // Kiểm tra form
-    const errors: {
-      currentPassword?: string;
-      newPassword?: string;
-      confirmPassword?: string;
-    } = {};
-    
-    if (!currentPassword) {
-      errors.currentPassword = 'Vui lòng nhập mật khẩu hiện tại';
-    }
-    
-    if (!newPassword) {
-      errors.newPassword = 'Vui lòng nhập mật khẩu mới';
-    } else if (newPassword.length < 6) {
-      errors.newPassword = 'Mật khẩu phải có ít nhất 6 ký tự';
-    }
-    
-    if (!confirmPassword) {
-      errors.confirmPassword = 'Vui lòng xác nhận mật khẩu mới';
-    } else if (confirmPassword !== newPassword) {
-      errors.confirmPassword = 'Xác nhận mật khẩu không khớp';
-    }
-    
-    if (Object.keys(errors).length > 0) {
-      setFormErrors(errors);
-      return;
-    }
-    
-    // Giả lập API call
-    setTimeout(() => {
-      setSuccessMessage('Đổi mật khẩu thành công');
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-      
-      // Xóa thông báo thành công sau 3 giây
-      setTimeout(() => {
-        setSuccessMessage('');
-      }, 3000);
-    }, 1000);
-  };
-  
-  // Format ngày tháng
+  // Format ngày tháng với múi giờ Việt Nam
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return new Intl.DateTimeFormat('vi-VN', {
@@ -188,7 +220,8 @@ const Profile = () => {
       month: 'long',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
+      timeZone: 'Asia/Ho_Chi_Minh'
     }).format(date);
   };
   
@@ -267,7 +300,8 @@ const Profile = () => {
                     href="#"
                     onClick={(e) => {
                       e.preventDefault();
-                      navigate('/profile/security');
+                      // Chuyển thẳng đến trang Security thay vì profile/security
+                      navigate('/security');
                     }}
                     className={`block px-3 py-2 rounded-md text-sm font-medium ${
                       section === 'security'
@@ -319,25 +353,13 @@ const Profile = () => {
                   <h2 className="text-xl font-semibold text-gray-900 mb-4">Thông tin cá nhân</h2>
                   
                   <div className="space-y-6">
-                    <div className="flex items-center">
-                      <div className="h-20 w-20 rounded-full overflow-hidden bg-gray-200">
-                        {user?.avatar ? (
-                          <img
-                            src={user.avatar}
-                            alt={user.name}
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <svg className="h-full w-full text-gray-400" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M24 20.993V24H0v-2.996A14.977 14.977 0 0112.004 15c4.904 0 9.26 2.354 11.996 5.993zM16.002 8.999a4 4 0 11-8 0 4 4 0 018 0z" />
-                          </svg>
-                        )}
-                      </div>
-                      <div className="ml-4">
-                        <Button variant="outline" size="sm">
-                          Thay đổi ảnh
-                        </Button>
-                      </div>
+                    {/* Upload Avatar Component */}
+                    <div className="flex justify-center">
+                      <AvatarUpload
+                        currentAvatar={user?.avatar}
+                        onAvatarChange={handleAvatarChange}
+                        isLoading={isUploadingAvatar}
+                      />
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -348,7 +370,7 @@ const Profile = () => {
                           value={name}
                           onChange={(e) => setName(e.target.value)}
                           error={formErrors.name}
-                          fullWidth
+                          fullwidth
                         />
                       </div>
                       
@@ -358,7 +380,7 @@ const Profile = () => {
                           type="email"
                           value={email}
                           disabled
-                          fullWidth
+                          fullwidth
                         />
                         <p className="mt-1 text-xs text-gray-500">Email không thể thay đổi</p>
                       </div>
@@ -370,7 +392,7 @@ const Profile = () => {
                           value={phone}
                           onChange={(e) => setPhone(e.target.value)}
                           error={formErrors.phone}
-                          fullWidth
+                          fullwidth
                         />
                       </div>
                       
@@ -381,7 +403,7 @@ const Profile = () => {
                           value={address}
                           onChange={(e) => setAddress(e.target.value)}
                           error={formErrors.address}
-                          fullWidth
+                          fullwidth
                         />
                       </div>
                     </div>
@@ -397,62 +419,27 @@ const Profile = () => {
               
               {/* Bảo mật */}
               {section === 'security' && (
-                <Card className="p-6">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-4">Bảo mật</h2>
-                  
-                  <div className="space-y-6">
-                    <div>
-                      <h3 className="text-lg font-medium text-gray-900 mb-4">Đổi mật khẩu</h3>
-                      
-                      <div className="space-y-4">
-                        <Input
-                          label="Mật khẩu hiện tại"
-                          type="password"
-                          value={currentPassword}
-                          onChange={(e) => setCurrentPassword(e.target.value)}
-                          error={formErrors.currentPassword}
-                          fullWidth
-                        />
-                        
-                        <Input
-                          label="Mật khẩu mới"
-                          type="password"
-                          value={newPassword}
-                          onChange={(e) => setNewPassword(e.target.value)}
-                          error={formErrors.newPassword}
-                          fullWidth
-                        />
-                        
-                        <Input
-                          label="Xác nhận mật khẩu mới"
-                          type="password"
-                          value={confirmPassword}
-                          onChange={(e) => setConfirmPassword(e.target.value)}
-                          error={formErrors.confirmPassword}
-                          fullWidth
-                        />
+                <div className="space-y-6">
+                  <Card className="p-6">
+                    <div className="text-center py-8">
+                      <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 mb-4">
+                        <svg className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
                       </div>
-                      
-                      <div className="mt-6">
-                        <Button onClick={handleChangePassword}>
-                          Đổi mật khẩu
-                        </Button>
-                      </div>
-                    </div>
-                    
-                    <div className="pt-6 border-t border-gray-200">
-                      <h3 className="text-lg font-medium text-gray-900 mb-4">Xóa tài khoản</h3>
-                      
-                      <p className="text-sm text-gray-500 mb-4">
-                        Khi bạn xóa tài khoản, tất cả dữ liệu của bạn sẽ bị xóa vĩnh viễn. Hành động này không thể hoàn tác.
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">Cài đặt bảo mật</h3>
+                      <p className="text-gray-500 mb-6">
+                        Đi đến trang bảo mật để quản lý mật khẩu và các cài đặt bảo mật khác
                       </p>
-                      
-                      <Button variant="danger">
-                        Xóa tài khoản
+                      <Button 
+                        onClick={() => navigate('/security')}
+                        className="bg-blue-600 hover:bg-blue-700"
+                      >
+                        Mở trang bảo mật
                       </Button>
                     </div>
-                  </div>
-                </Card>
+                  </Card>
+                </div>
               )}
               
               {/* Hoạt động */}

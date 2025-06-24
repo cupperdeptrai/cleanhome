@@ -6,25 +6,28 @@ import AuthService from '../../services/auth.service';
 const Register: React.FC = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [countdown, setCountdown] = useState(3);
+  const [shouldRedirect, setShouldRedirect] = useState(false); // Flag để điều khiển redirect
   
   const navigate = useNavigate();
   
-  // Effect để xử lý đếm ngược khi đăng ký thành công
+  // Effect để xử lý đếm ngược và redirect khi đăng ký thành công
+  // Tách riêng logic redirect để tránh state update conflicts
   useEffect(() => {
     let timer: NodeJS.Timeout;
     
-    if (success) {
+    if (success && !shouldRedirect) {
       timer = setInterval(() => {
         setCountdown((prev) => {
           if (prev <= 1) {
             clearInterval(timer);
-            navigate('/login');
+            setShouldRedirect(true); // Set flag thay vì navigate trực tiếp
             return 0;
           }
           return prev - 1;
@@ -35,12 +38,45 @@ const Register: React.FC = () => {
     return () => {
       if (timer) clearInterval(timer);
     };
-  }, [success, navigate]);
+  }, [success, shouldRedirect]);
+  
+  // Effect riêng để xử lý redirect khi shouldRedirect = true
+  // Điều này tránh được lỗi state update trong render cycle
+  useEffect(() => {
+    if (shouldRedirect) {
+      const redirectTimer = setTimeout(() => {
+        navigate('/login');
+      }, 100); // Delay nhỏ để đảm bảo render hoàn tất
+      
+      return () => clearTimeout(redirectTimer);
+    }
+  }, [shouldRedirect, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess('');
+    
+    // Validation cơ bản
+    if (!name.trim()) {
+      setError('Vui lòng nhập họ tên');
+      return;
+    }
+    
+    if (!email.trim()) {
+      setError('Vui lòng nhập email');
+      return;
+    }
+    
+    if (!phone.trim()) {
+      setError('Vui lòng nhập số điện thoại');
+      return;
+    }
+    
+    if (!/^0[3-9]\d{8}$/.test(phone.replace(/\s+/g, ''))) {
+      setError('Số điện thoại phải có định dạng 10 chữ số bắt đầu bằng 0 (ví dụ: 0912345678)');
+      return;
+    }
     
     // Kiểm tra mật khẩu xác nhận
     if (password !== confirmPassword) {
@@ -48,30 +84,94 @@ const Register: React.FC = () => {
       return;
     }
     
+    // Kiểm tra độ mạnh mật khẩu
+    if (password.length < 6) {
+      setError('Mật khẩu phải có ít nhất 6 ký tự');
+      return;
+    }
+    
     setIsLoading(true);
     
     try {
-      // Sử dụng AuthService thay vì gọi axios trực tiếp
+      console.log('🚀 Đang gửi yêu cầu đăng ký với:', { 
+        name: name.trim(), 
+        email: email.trim().toLowerCase(),
+        phone: phone.trim(),
+        password: '***' 
+      });
+      
+      // Sử dụng AuthService để đăng ký
       const response = await AuthService.register({
-        name,
-        email,
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        phone: phone.trim() || undefined, // Chỉ gửi phone nếu có nhập
         password
       });
       
-      console.log('Register response:', response);
+      console.log('📥 Phản hồi từ server:', response);
       
-      // Hiển thị thông báo thành công
-      setSuccess('Bạn đã đăng ký thành công tài khoản!');
-      setCountdown(3); // Bắt đầu đếm ngược 3 giây
-    } catch (err) {
-      console.error('Register error:', err);
-      if (axios.isAxiosError(err) && err.response) {
-        // Lấy thông báo lỗi từ API
-        setError(err.response.data.message || 'Đã xảy ra lỗi khi đăng ký. Vui lòng thử lại sau.');
-      } else if (axios.isAxiosError(err) && err.code === 'ERR_NETWORK') {
-        setError('Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng hoặc liên hệ quản trị viên.');
+      // Kiểm tra response thành công
+      const isSuccess = response.status === 'success' || 
+                       response.message === 'User registered successfully' || 
+                       response.user;
+      
+      if (isSuccess) {
+        console.log('✅ Đăng ký thành công!');
+        
+        // Lưu thông tin xác thực vào localStorage nếu có
+        if (response.token && response.user) {
+          localStorage.setItem('token', response.token);
+          localStorage.setItem('user', JSON.stringify(response.user));
+          console.log('💾 Đã lưu token và thông tin user vào localStorage');
+        }
+        
+        // Reset form để tránh submit lại
+        setName('');
+        setEmail('');
+        setPassword('');
+        setConfirmPassword('');
+        
+        // Hiển thị thông báo thành công và bắt đầu đếm ngược
+        setSuccess('🎉 Bạn đã đăng ký thành công tài khoản!');
+        setCountdown(3);
+        setShouldRedirect(false); // Reset redirect flag
+        
       } else {
-        setError('Đã xảy ra lỗi khi đăng ký. Vui lòng thử lại sau.');
+        // Backend trả về lỗi trong response
+        console.warn('⚠️ Đăng ký không thành công:', response.message);
+        setError(response.message || 'Đăng ký không thành công. Vui lòng thử lại.');
+      }
+    } catch (err) {
+      console.error('❌ Lỗi đăng ký:', err);
+      
+      if (axios.isAxiosError(err)) {
+        if (err.response) {
+          // Server phản hồi với status code lỗi
+          const responseData = err.response.data;
+          console.error('Lỗi từ server:', responseData);
+          
+          if (responseData.message) {
+            setError(responseData.message);
+          } else if (responseData.details && Array.isArray(responseData.details)) {
+            setError(responseData.details.join(', '));
+          } else {
+            setError('Đã xảy ra lỗi khi đăng ký. Vui lòng thử lại sau.');
+          }
+        } else if (err.code === 'ERR_NETWORK') {
+          // Lỗi kết nối mạng
+          console.error('Lỗi kết nối mạng');
+          setError('Không thể kết nối đến máy chủ. Vui lòng kiểm tra:' +
+                   '\n- Kết nối mạng của bạn' );
+        } else if (err.code === 'ECONNREFUSED') {
+          // Máy chủ từ chối kết nối
+          setError('Máy chủ backend không phản hồi.');
+        } else {
+          // Lỗi khác từ axios
+          setError(`Lỗi kết nối: ${err.message}`);
+        }
+      } else {
+        // Lỗi không phải từ axios
+        setError('Đã xảy ra lỗi không mong muốn. Vui lòng thử lại sau.');
       }
     } finally {
       setIsLoading(false);
@@ -122,6 +222,24 @@ const Register: React.FC = () => {
               className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
             />
+          </div>
+          
+          <div className="mb-4">
+            <label htmlFor="phone" className="block text-gray-700 font-medium mb-2">
+              Số điện thoại <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="tel"
+              id="phone"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="Ví dụ: 0912345678"
+              className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Số điện thoại dùng để khôi phục mật khẩu khi cần thiết
+            </p>
           </div>
           
           <div className="mb-4">

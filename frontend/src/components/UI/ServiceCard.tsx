@@ -53,7 +53,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service }) => {
             <div className="text-sm text-gray-500">{formatDuration(service.duration)}</div>
           </div>
           <Link to={`/booking?service=${service.id}`}>
-            <Button fullWidth>Đặt lịch ngay</Button>
+            <Button fullwidth>Đặt lịch ngay</Button>
           </Link>
         </div>
       </div>

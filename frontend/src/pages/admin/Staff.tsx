@@ -1,690 +1,701 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import DashboardLayout from '../../components/Layout/DashboardLayout';
-import { Staff, StaffSchedule } from '../../types';
+import { AdminService, AdminStaff } from '../../services/admin.service';
+import { formatDate } from '../../utils/dateTime';
+import { 
+  PlusIcon, 
+  MagnifyingGlassIcon, 
+  PencilIcon, 
+  TrashIcon,
+  StarIcon,
+  UserIcon,
+  PhoneIcon,
+  EnvelopeIcon,
+  CalendarIcon,
+  XMarkIcon
+} from '@heroicons/react/24/outline';
+import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 
 /**
- * Trang Quản lý Nhân viên - Hiển thị danh sách nhân viên và cho phép quản lý
- * @returns Trang quản lý nhân viên
+ * Trang Quản lý Nhân viên - Phiên bản mới đồng bộ với schema
  */
 const StaffManagement: React.FC = () => {
-  // Dữ liệu mẫu cho danh sách nhân viên
-  const [staffList, setStaffList] = useState<Staff[]>([
-    {
-      id: '2',
-      name: 'Nguyễn Văn X',
-      email: 'staff1@example.com',
-      role: 'staff',
-      phone: '0901234567',
-      address: 'Quận 1, TP. HCM',
-      avatar: 'https://randomuser.me/api/portraits/men/1.jpg',
-      skills: ['Vệ sinh nhà cửa', 'Vệ sinh văn phòng', 'Vệ sinh điều hòa'],
-      rating: 4.8,
-      completedJobs: 156,
-      isAvailable: true,
-      schedule: [
-        {
-          date: '2023-06-15',
-          timeSlots: [
-            { start: '09:00', end: '11:00', bookingId: 'BK-1234' },
-            { start: '14:00', end: '16:00', bookingId: 'BK-1240' }
-          ]
-        }
-      ]
-    },
-    {
-      id: '5',
-      name: 'Trần Thị Y',
-      email: 'staff2@example.com',
-      role: 'staff',
-      phone: '0912345678',
-      address: 'Quận 2, TP. HCM',
-      avatar: 'https://randomuser.me/api/portraits/women/2.jpg',
-      skills: ['Vệ sinh nhà cửa', 'Vệ sinh tủ lạnh', 'Phun khử khuẩn'],
-      rating: 4.5,
-      completedJobs: 98,
-      isAvailable: true,
-      schedule: [
-        {
-          date: '2023-06-14',
-          timeSlots: [
-            { start: '14:00', end: '16:00', bookingId: 'BK-1235' }
-          ]
-        }
-      ]
-    },
-    {
-      id: '7',
-      name: 'Lê Văn Z',
-      email: 'staff3@example.com',
-      role: 'staff',
-      phone: '0923456789',
-      address: 'Quận 7, TP. HCM',
-      avatar: 'https://randomuser.me/api/portraits/men/3.jpg',
-      skills: ['Vệ sinh văn phòng', 'Vệ sinh điều hòa'],
-      rating: 4.2,
-      completedJobs: 75,
-      isAvailable: false,
-      schedule: [
-        {
-          date: '2023-06-14',
-          timeSlots: [
-            { start: '16:30', end: '18:30', bookingId: 'BK-1236' }
-          ]
-        }
-      ]
-    },
-    {
-      id: '10',
-      name: 'Phạm Thị W',
-      email: 'staff4@example.com',
-      role: 'staff',
-      phone: '0934567890',
-      address: 'Quận 3, TP. HCM',
-      avatar: 'https://randomuser.me/api/portraits/women/4.jpg',
-      skills: ['Vệ sinh nhà cửa', 'Vệ sinh văn phòng'],
-      rating: 4.7,
-      completedJobs: 120,
-      isAvailable: true,
-      schedule: []
-    },
-    {
-      id: '11',
-      name: 'Hoàng Văn V',
-      email: 'staff5@example.com',
-      role: 'staff',
-      phone: '0945678901',
-      address: 'Quận 5, TP. HCM',
-      avatar: 'https://randomuser.me/api/portraits/men/5.jpg',
-      skills: ['Vệ sinh điều hòa', 'Vệ sinh tủ lạnh', 'Phun khử khuẩn'],
-      rating: 4.3,
-      completedJobs: 85,
-      isAvailable: true,
-      schedule: []
-    }
-  ]);
-
-  // State cho modal thêm/sửa nhân viên
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [currentStaff, setCurrentStaff] = useState<Staff | null>(null);
+  const [staffList, setStaffList] = useState<AdminStaff[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [skillFilter, setSkillFilter] = useState('all');
-  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
-  const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [currentStaff, setCurrentStaff] = useState<AdminStaff | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [selectedStaff, setSelectedStaff] = useState<AdminStaff | null>(null);
+  // Form data cho modal thêm/sửa nhân viên
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    password: '',
+    status: 'active' as 'active' | 'inactive' | 'locked' | 'pending'
+  });
 
-  // Danh sách các kỹ năng
-  const allSkills = ['Vệ sinh nhà cửa', 'Vệ sinh văn phòng', 'Vệ sinh điều hòa', 'Vệ sinh tủ lạnh', 'Phun khử khuẩn'];
+  // Load dữ liệu nhân viên
+  useEffect(() => {
+    loadStaffData();
+  }, []);
 
-  // Mở modal thêm nhân viên mới
+  const loadStaffData = async () => {
+    try {
+      setLoading(true);
+      const data = await AdminService.getStaff();
+      setStaffList(data);
+    } catch (error) {
+      console.error('Lỗi khi tải dữ liệu nhân viên:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Lọc danh sách nhân viên
+  const filteredStaff = staffList.filter(staff => {
+    const matchesSearch = staff.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         staff.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         staff.phone.includes(searchTerm);
+    const matchesStatus = statusFilter === 'all' || staff.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  // Mở modal thêm nhân viên
   const handleAddStaff = () => {
-    setCurrentStaff({
-      id: '',
+    setCurrentStaff(null);    setFormData({
       name: '',
       email: '',
-      role: 'staff',
       phone: '',
-      address: '',
-      avatar: '',
-      skills: [],
-      rating: 0,
-      completedJobs: 0,
-      isAvailable: true,
-      schedule: []
+      password: '',
+      status: 'active'
     });
     setIsModalOpen(true);
   };
 
   // Mở modal sửa nhân viên
-  const handleEditStaff = (staff: Staff) => {
-    setCurrentStaff(staff);
+  const handleEditStaff = (staff: AdminStaff) => {
+    setCurrentStaff(staff);    setFormData({
+      name: staff.name,
+      email: staff.email,
+      phone: staff.phone,
+      password: '', // Không hiển thị mật khẩu hiện tại
+      status: staff.status
+    });
     setIsModalOpen(true);
   };
-
-  // Xử lý xóa nhân viên
-  const handleDeleteStaff = (id: string) => {
-    if (window.confirm('Bạn có chắc chắn muốn xóa nhân viên này không?')) {
-      setStaffList(staffList.filter(staff => staff.id !== id));
+  // Xử lý submit form
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validation
+    if (!formData.name.trim()) {
+      alert('Vui lòng nhập tên nhân viên');
+      return;
+    }
+    
+    if (!formData.email.trim()) {
+      alert('Vui lòng nhập email');
+      return;
+    }
+    
+    if (!formData.phone.trim()) {
+      alert('Vui lòng nhập số điện thoại');
+      return;
+    }
+    
+    try {      if (currentStaff) {
+        // Cập nhật nhân viên
+        await AdminService.updateStaff(currentStaff.id, formData);
+        alert('Cập nhật nhân viên thành công!');
+      } else {        // Thêm nhân viên mới
+        console.log('🆕 Đang tạo nhân viên mới với dữ liệu:', formData);
+        const result = await AdminService.createStaff(formData);
+        
+        // Hiển thị thông báo thành công
+        if (result.isGeneratedPassword && result.password) {
+          alert(`Thêm nhân viên mới thành công!\n\nThông tin đăng nhập:\nEmail: ${formData.email}\nMật khẩu tự động: ${result.password}\n\nLưu ý: Vui lòng gửi thông tin này cho nhân viên và yêu cầu đổi mật khẩu khi đăng nhập lần đầu.`);
+        } else {
+          alert(`Thêm nhân viên mới thành công!\n\nEmail: ${formData.email}\nMật khẩu: Đã được thiết lập theo yêu cầu`);
+        }
+        
+        console.log('✅ Tạo nhân viên thành công:', result);
+      }
+      setIsModalOpen(false);
+      loadStaffData();
+    } catch (error) {
+      console.error('Lỗi khi lưu nhân viên:', error);
+      alert('Có lỗi xảy ra khi lưu thông tin nhân viên');
+    }
+  };
+  // Xóa nhân viên
+  const handleDeleteStaff = async (staffId: string, staffName: string) => {
+    if (window.confirm(`Bạn có chắc muốn xóa nhân viên "${staffName}"?\n\nLưu ý: Hành động này sẽ:\n- Xóa vĩnh viễn thông tin nhân viên\n- Cập nhật trạng thái các booking liên quan\n- Không thể hoàn tác`)) {
+      try {
+        await AdminService.deleteStaff(staffId);
+        alert('Xóa nhân viên thành công!');
+        loadStaffData();
+      } catch (error) {
+        console.error('Lỗi khi xóa nhân viên:', error);
+        alert('Có lỗi xảy ra khi xóa nhân viên');
+      }
+    }
+  };  // Cập nhật trạng thái nhân viên
+  const handleUpdateStatus = async (staffId: string, newStatus: AdminStaff['status'], staffName?: string) => {
+    // Xác nhận trước khi thay đổi trạng thái
+    const statusMessages = {
+      'active': 'kích hoạt',
+      'inactive': 'tạm nghỉ',
+      'locked': 'khóa',
+      'pending': 'đang chờ'
+    };
+    
+    const actionText = statusMessages[newStatus] || newStatus;
+    const confirmMessage = `Bạn có chắc muốn ${actionText} nhân viên "${staffName || 'này'}"?`;
+    
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+    
+    try {
+      const updatedStaff = await AdminService.updateStaffStatus(staffId, newStatus);
+      
+      // Hiển thị thông báo thành công
+      alert(`Đã ${actionText} nhân viên "${updatedStaff.name}" thành công!`);
+      
+      // Reload dữ liệu để cập nhật UI
+      loadStaffData();
+    } catch (error) {
+      console.error('Lỗi khi cập nhật trạng thái nhân viên:', error);
+      alert('Có lỗi xảy ra khi cập nhật trạng thái nhân viên. Vui lòng thử lại!');
     }
   };
 
-  // Xử lý thay đổi trạng thái nhân viên
-  const handleToggleStatus = (id: string) => {
-    setStaffList(staffList.map(staff => 
-      staff.id === id ? { ...staff, isAvailable: !staff.isAvailable } : staff
-    ));
+  // Xem chi tiết nhân viên
+  const handleViewDetails = (staff: AdminStaff) => {
+    setSelectedStaff(staff);
+    setIsDetailModalOpen(true);
   };
 
-  // Mở modal lịch làm việc
-  const handleViewSchedule = (staffId: string) => {
-    setSelectedStaffId(staffId);
-    setIsScheduleModalOpen(true);
+  // Render star rating
+  const renderStarRating = (rating: number) => {
+    const stars = [];
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 !== 0;
+
+    for (let i = 0; i < fullStars; i++) {
+      stars.push(
+        <StarIconSolid key={i} className="h-4 w-4 text-yellow-400" />
+      );
+    }
+
+    if (hasHalfStar) {
+      stars.push(
+        <div key="half" className="relative">
+          <StarIcon className="h-4 w-4 text-gray-300" />
+          <StarIconSolid className="h-4 w-4 text-yellow-400 absolute top-0 left-0" style={{ clipPath: 'inset(0 50% 0 0)' }} />
+        </div>
+      );
+    }
+
+    const remainingStars = 5 - Math.ceil(rating);
+    for (let i = 0; i < remainingStars; i++) {
+      stars.push(
+        <StarIcon key={`empty-${i}`} className="h-4 w-4 text-gray-300" />
+      );
+    }
+
+    return stars;
   };
 
-  // Lọc nhân viên theo tìm kiếm và kỹ năng
-  const filteredStaff = staffList.filter(staff => {
-    const matchesSearch = staff.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          staff.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          staff.phone.includes(searchTerm);
-    const matchesSkill = skillFilter === 'all' || staff.skills.includes(skillFilter);
-    return matchesSearch && matchesSkill;
-  });
-
-  // Lấy lịch làm việc của nhân viên được chọn
-  const getStaffSchedule = (staffId: string, date: string): StaffSchedule | undefined => {
-    const staff = staffList.find(s => s.id === staffId);
-    if (!staff) return undefined;
-    return staff.schedule.find(s => s.date === date);
+  // Get status badge style
+  const getStatusBadge = (status: AdminStaff['status']) => {
+    switch (status) {
+      case 'active':
+        return 'bg-green-100 text-green-800';
+      case 'inactive':
+        return 'bg-gray-100 text-gray-800';
+      case 'locked':
+        return 'bg-red-100 text-red-800';
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
   };
 
-  // Thêm slot thời gian mới vào lịch làm việc
-  const handleAddTimeSlot = (staffId: string, date: string, start: string, end: string) => {
-    setStaffList(staffList.map(staff => {
-      if (staff.id !== staffId) return staff;
-      
-      const scheduleIndex = staff.schedule.findIndex(s => s.date === date);
-      if (scheduleIndex === -1) {
-        // Nếu chưa có lịch cho ngày này, thêm mới
-        return {
-          ...staff,
-          schedule: [
-            ...staff.schedule,
-            {
-              date,
-              timeSlots: [{ start, end, bookingId: undefined }]
-            }
-          ]
-        };
-      } else {
-        // Nếu đã có lịch cho ngày này, thêm slot mới
-        const newSchedule = [...staff.schedule];
-        newSchedule[scheduleIndex] = {
-          ...newSchedule[scheduleIndex],
-          timeSlots: [...newSchedule[scheduleIndex].timeSlots, { start, end, bookingId: undefined }]
-        };
-        return { ...staff, schedule: newSchedule };
-      }
-    }));
+  const getStatusText = (status: AdminStaff['status']) => {
+    switch (status) {
+      case 'active':
+        return 'Đang hoạt động';
+      case 'inactive':
+        return 'Tạm nghỉ';
+      case 'locked':
+        return 'Bị khóa';
+      case 'pending':
+        return 'Chờ duyệt';
+      default:
+        return status;
+    }
   };
 
-  // Xóa slot thời gian khỏi lịch làm việc
-  const handleRemoveTimeSlot = (staffId: string, date: string, index: number) => {
-    setStaffList(staffList.map(staff => {
-      if (staff.id !== staffId) return staff;
-      
-      const scheduleIndex = staff.schedule.findIndex(s => s.date === date);
-      if (scheduleIndex === -1) return staff;
-      
-      const newSchedule = [...staff.schedule];
-      const newTimeSlots = [...newSchedule[scheduleIndex].timeSlots];
-      newTimeSlots.splice(index, 1);
-      
-      if (newTimeSlots.length === 0) {
-        // Nếu không còn slot nào, xóa lịch của ngày này
-        newSchedule.splice(scheduleIndex, 1);
-      } else {
-        newSchedule[scheduleIndex] = {
-          ...newSchedule[scheduleIndex],
-          timeSlots: newTimeSlots
-        };
-      }
-      
-      return { ...staff, schedule: newSchedule };
-    }));
-  };
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
-        <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-semibold text-gray-900">Quản lý nhân viên</h1>
-          <button
-            onClick={handleAddStaff}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-          >
-            <svg className="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-            Thêm nhân viên mới
-          </button>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="sm:flex sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Quản lý Nhân viên</h1>
+            <p className="mt-2 text-sm text-gray-700">
+              Quản lý danh sách nhân viên và trạng thái làm việc
+            </p>
+          </div>
+          <div className="mt-4 sm:mt-0">
+            <button
+              onClick={handleAddStaff}
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <PlusIcon className="h-4 w-4 mr-2" />
+              Thêm nhân viên
+            </button>
+          </div>
         </div>
 
-        {/* Bộ lọc và tìm kiếm */}
-        <div className="mt-6 bg-white shadow rounded-lg p-4">
-          <div className="md:flex md:items-center md:justify-between">
-            <div className="flex-1 min-w-0">
-              <div className="relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                </div>
-                <input
-                  type="text"
-                  className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md"
-                  placeholder="Tìm kiếm nhân viên theo tên, email, số điện thoại..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
+        {/* Filters */}
+        <div className="bg-white shadow rounded-lg p-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Search */}
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
               </div>
+              <input
+                type="text"
+                placeholder="Tìm kiếm nhân viên..."
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
-            <div className="mt-4 md:mt-0 md:ml-4">
+
+            {/* Status Filter */}
+            <div>
               <select
-                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
-                value={skillFilter}
-                onChange={(e) => setSkillFilter(e.target.value)}
+                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                aria-label="Lọc theo trạng thái"
               >
-                <option value="all">Tất cả kỹ năng</option>
-                {allSkills.map((skill) => (
-                  <option key={skill} value={skill}>{skill}</option>
-                ))}
+                <option value="all">Tất cả trạng thái</option>
+                <option value="active">Đang hoạt động</option>
+                <option value="inactive">Tạm nghỉ</option>
+                <option value="locked">Bị khóa</option>
+                <option value="pending">Chờ duyệt</option>
               </select>
+            </div>
+
+            <div className="text-sm text-gray-500 flex items-center">
+              Tổng cộng: {filteredStaff.length} nhân viên
             </div>
           </div>
         </div>
 
-        {/* Danh sách nhân viên */}
-        <div className="mt-6 bg-white shadow overflow-hidden rounded-lg">
+        {/* Staff Table */}
+        <div className="bg-white shadow overflow-hidden sm:rounded-lg">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Nhân viên
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Liên hệ
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Kỹ năng
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Hiệu suất
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Trạng thái
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Hành động
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Đánh giá
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Thống kê
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Ngày vào làm
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Thao tác
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredStaff.map((staff) => (
-                  <tr key={staff.id}>
+                  <tr key={staff.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-10 w-10">
-                          <img className="h-10 w-10 rounded-full object-cover" src={staff.avatar} alt={staff.name} />
+                          {staff.avatar ? (
+                            <img className="h-10 w-10 rounded-full" src={staff.avatar} alt="" />
+                          ) : (
+                            <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
+                              <UserIcon className="h-6 w-6 text-gray-500" />
+                            </div>
+                          )}
                         </div>
                         <div className="ml-4">
                           <div className="text-sm font-medium text-gray-900">{staff.name}</div>
-                          <div className="text-sm text-gray-500">{staff.email}</div>
+                          <div className="text-sm text-gray-500">ID: {staff.id}</div>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{staff.phone}</div>
-                      <div className="text-sm text-gray-500">{staff.address}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-wrap gap-1">
-                        {staff.skills.map((skill) => (
-                          <span key={skill} className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                            {skill}
-                          </span>
-                        ))}
+                      <div className="text-sm text-gray-900">
+                        <div className="flex items-center">
+                          <EnvelopeIcon className="h-4 w-4 text-gray-400 mr-2" />
+                          {staff.email}
+                        </div>
+                        <div className="flex items-center mt-1">
+                          <PhoneIcon className="h-4 w-4 text-gray-400 mr-2" />
+                          {staff.phone}
+                        </div>
                       </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusBadge(staff.status)}`}>
+                        {getStatusText(staff.status)}
+                      </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        <div className="flex items-center">
-                          {[0, 1, 2, 3, 4].map((rating) => (
-                            <svg
-                              key={rating}
-                              className={`h-5 w-5 ${
-                                rating < Math.floor(staff.rating) ? 'text-yellow-400' : 'text-gray-300'
-                              }`}
-                              fill="currentColor"
-                              viewBox="0 0 20 20"
-                            >
-                              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                            </svg>
-                          ))}
-                          <span className="ml-1 text-sm text-gray-500">{staff.rating.toFixed(1)}</span>
-                        </div>
-                        <div className="ml-4 text-sm text-gray-500">
-                          {staff.completedJobs} công việc hoàn thành
-                        </div>
+                        {renderStarRating(staff.rating)}
+                        <span className="ml-2 text-sm text-gray-500">({staff.rating})</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        staff.isAvailable ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                      }`}>
-                        {staff.isAvailable ? 'Đang làm việc' : 'Tạm nghỉ'}
-                      </span>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <div>Tổng: {staff.totalBookings} đơn</div>
+                      <div>Hoàn thành: {staff.completedBookings}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <button
-                        onClick={() => handleViewSchedule(staff.id)}
-                        className="text-blue-600 hover:text-blue-900 mr-3"
-                      >
-                        Lịch làm việc
-                      </button>
-                      <button
-                        onClick={() => handleEditStaff(staff)}
-                        className="text-blue-600 hover:text-blue-900 mr-3"
-                      >
-                        Sửa
-                      </button>
-                      <button
-                        onClick={() => handleToggleStatus(staff.id)}
-                        className={`${
-                          staff.isAvailable ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'
-                        } mr-3`}
-                      >
-                        {staff.isAvailable ? 'Tạm nghỉ' : 'Kích hoạt'}
-                      </button>
-                      <button
-                        onClick={() => handleDeleteStaff(staff.id)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        Xóa
-                      </button>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center text-sm text-gray-500">
+                        <CalendarIcon className="h-4 w-4 mr-2" />
+                        {formatDate(staff.hireDate)}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex items-center justify-end space-x-2">                        <button
+                          onClick={() => handleViewDetails(staff)}
+                          className="text-blue-600 hover:text-blue-900"
+                          title="Xem chi tiết"
+                          aria-label="Xem chi tiết nhân viên"
+                        >
+                          <UserIcon className="h-4 w-4" />
+                        </button>                        <button
+                          onClick={() => handleEditStaff(staff)}
+                          className="text-indigo-600 hover:text-indigo-900"
+                          title="Chỉnh sửa"
+                          aria-label="Chỉnh sửa nhân viên"
+                        >
+                          <PencilIcon className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleUpdateStatus(
+                            staff.id, 
+                            staff.status === 'active' ? 'inactive' : 'active',
+                            staff.name
+                          )}
+                          className={`${
+                            staff.status === 'active' 
+                              ? 'text-orange-600 hover:text-orange-900' 
+                              : 'text-green-600 hover:text-green-900'
+                          }`}
+                          title={staff.status === 'active' ? 'Tạm nghỉ' : 'Kích hoạt'}
+                          aria-label={`${staff.status === 'active' ? 'Tạm nghỉ' : 'Kích hoạt'} nhân viên`}
+                        >
+                          {staff.status === 'active' ? (
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          ) : (
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h8m2 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          )}
+                        </button><button
+                          onClick={() => handleDeleteStaff(staff.id, staff.name)}
+                          className="text-red-600 hover:text-red-900"
+                          title="Xóa"
+                          aria-label="Xóa nhân viên"
+                        >
+                          <TrashIcon className="h-4 w-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          {filteredStaff.length === 0 && (
-            <div className="px-6 py-4 text-center text-gray-500">
-              Không tìm thấy nhân viên nào phù hợp với tìm kiếm của bạn.
-            </div>
-          )}
         </div>
+
+        {/* Empty State */}
+        {filteredStaff.length === 0 && (
+          <div className="text-center py-12">
+            <UserIcon className="mx-auto h-12 w-12 text-gray-400" />
+            <h3 className="mt-2 text-sm font-medium text-gray-900">Không có nhân viên</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              {searchTerm || statusFilter !== 'all' 
+                ? 'Không tìm thấy nhân viên phù hợp với bộ lọc.'
+                : 'Bắt đầu bằng cách thêm nhân viên đầu tiên.'
+              }
+            </p>
+          </div>
+        )}
       </div>
 
-      {/* Modal thêm/sửa nhân viên */}
-      {isModalOpen && currentStaff && (
-        <div className="fixed z-10 inset-0 overflow-y-auto">
-          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 transition-opacity" aria-hidden="true">
-              <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
+      {/* Add/Edit Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium text-gray-900">
+                {currentStaff ? 'Chỉnh sửa nhân viên' : 'Thêm nhân viên mới'}
+              </h3>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
             </div>
-            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <div className="sm:flex sm:items-start">
-                  <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
-                    <h3 className="text-lg leading-6 font-medium text-gray-900">
-                      {currentStaff.id ? 'Chỉnh sửa nhân viên' : 'Thêm nhân viên mới'}
-                    </h3>
-                    <div className="mt-4 space-y-4">
-                      <div>
-                        <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                          Họ tên
-                        </label>
-                        <input
-                          type="text"
-                          id="name"
-                          className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                          value={currentStaff.name}
-                          onChange={(e) => setCurrentStaff({ ...currentStaff, name: e.target.value })}
-                        />
-                      </div>
-                      <div>
-                        <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                          Email
-                        </label>
-                        <input
-                          type="email"
-                          id="email"
-                          className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                          value={currentStaff.email}
-                          onChange={(e) => setCurrentStaff({ ...currentStaff, email: e.target.value })}
-                        />
-                      </div>
-                      <div>
-                        <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
-                          Số điện thoại
-                        </label>
-                        <input
-                          type="text"
-                          id="phone"
-                          className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                          value={currentStaff.phone}
-                          onChange={(e) => setCurrentStaff({ ...currentStaff, phone: e.target.value })}
-                        />
-                      </div>
-                      <div>
-                        <label htmlFor="address" className="block text-sm font-medium text-gray-700">
-                          Địa chỉ
-                        </label>
-                        <input
-                          type="text"
-                          id="address"
-                          className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                          value={currentStaff.address}
-                          onChange={(e) => setCurrentStaff({ ...currentStaff, address: e.target.value })}
-                        />
-                      </div>
-                      <div>
-                        <label htmlFor="avatar" className="block text-sm font-medium text-gray-700">
-                          URL ảnh đại diện
-                        </label>
-                        <input
-                          type="text"
-                          id="avatar"
-                          className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                          value={currentStaff.avatar}
-                          onChange={(e) => setCurrentStaff({ ...currentStaff, avatar: e.target.value })}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">
-                          Kỹ năng
-                        </label>
-                        <div className="mt-2 space-y-2">
-                          {allSkills.map((skill) => (
-                            <div key={skill} className="flex items-center">
-                              <input
-                                id={`skill-${skill}`}
-                                type="checkbox"
-                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                                checked={currentStaff.skills.includes(skill)}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setCurrentStaff({
-                                      ...currentStaff,
-                                      skills: [...currentStaff.skills, skill]
-                                    });
-                                  } else {
-                                    setCurrentStaff({
-                                      ...currentStaff,
-                                      skills: currentStaff.skills.filter(s => s !== skill)
-                                    });
-                                  }
-                                }}
-                              />
-                              <label htmlFor={`skill-${skill}`} className="ml-2 block text-sm text-gray-900">
-                                {skill}
-                              </label>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="flex items-center">
-                        <input
-                          id="isAvailable"
-                          type="checkbox"
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                          checked={currentStaff.isAvailable}
-                          onChange={(e) => setCurrentStaff({ ...currentStaff, isAvailable: e.target.checked })}
-                        />
-                        <label htmlFor="isAvailable" className="ml-2 block text-sm text-gray-900">
-                          Nhân viên đang làm việc
-                        </label>
-                      </div>
-                    </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4">              <div>
+                <label htmlFor="staff-name" className="block text-sm font-medium text-gray-700">
+                  Tên nhân viên *
+                </label>
+                <input
+                  id="staff-name"
+                  type="text"
+                  required
+                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  value={formData.name}
+                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  placeholder="Nhập tên đầy đủ"
+                />
+              </div>              <div>
+                <label htmlFor="staff-email" className="block text-sm font-medium text-gray-700">
+                  Email *
+                </label>
+                <input
+                  id="staff-email"
+                  type="email"
+                  required
+                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  value={formData.email}
+                  onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  placeholder="example@cleanhome.com"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="staff-password" className="block text-sm font-medium text-gray-700">
+                  Mật khẩu {!currentStaff && '*'}
+                </label>
+                <input
+                  id="staff-password"
+                  type="password"
+                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  value={formData.password}
+                  onChange={(e) => setFormData({...formData, password: e.target.value})}
+                  placeholder={currentStaff ? "Để trống nếu không muốn đổi" : "Để trống để tạo tự động"}
+                />
+                {!currentStaff && (
+                  <p className="mt-1 text-sm text-gray-500">
+                    Nếu để trống, hệ thống sẽ tạo mật khẩu tự động và hiển thị cho bạn
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label htmlFor="staff-phone" className="block text-sm font-medium text-gray-700">
+                  Số điện thoại *
+                </label>
+                <input
+                  id="staff-phone"
+                  type="tel"
+                  required
+                  pattern="^(0|\+84)[3-9]\d{8}$"
+                  title="Số điện thoại phải có định dạng: 0xxxxxxxxx hoặc +84xxxxxxxxx"
+                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                  placeholder="0xxxxxxxxx hoặc +84xxxxxxxxx"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Định dạng: 0xxxxxxxxx hoặc +84xxxxxxxxx
+                </p>
+              </div>              <div>
+                <label htmlFor="staff-status" className="block text-sm font-medium text-gray-700">Trạng thái</label>
+                <select
+                  id="staff-status"
+                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  value={formData.status}
+                  onChange={(e) => setFormData({...formData, status: e.target.value as AdminStaff['status']})}
+                  aria-label="Trạng thái nhân viên"
+                >
+                  <option value="active">Đang hoạt động</option>
+                  <option value="inactive">Tạm nghỉ</option>
+                  <option value="locked">Bị khóa</option>
+                  <option value="pending">Chờ duyệt</option>
+                </select>
+              </div>
+
+              {!currentStaff && (
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                  <div className="text-sm text-blue-700">
+                    <strong>Lưu ý:</strong> Sau khi tạo nhân viên mới, hệ thống sẽ tự động:
+                    <ul className="mt-2 ml-4 list-disc text-xs space-y-1">
+                      <li>Tạo tài khoản đăng nhập với role 'staff'</li>
+                      <li>Gửi email chào mừng và hướng dẫn đăng nhập</li>
+                      <li>Thiết lập lịch làm việc mặc định</li>
+                      <li>Cấp quyền truy cập hệ thống quản lý booking</li>
+                    </ul>
                   </div>
                 </div>
-              </div>
-              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+              )}
+
+              <div className="flex justify-end space-x-3 pt-4">
                 <button
                   type="button"
-                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
-                  onClick={() => {
-                    // Xử lý lưu nhân viên
-                    if (currentStaff.id) {
-                      // Cập nhật nhân viên hiện có
-                      setStaffList(staffList.map(staff => 
-                        staff.id === currentStaff.id ? currentStaff : staff
-                      ));
-                    } else {
-                      // Thêm nhân viên mới
-                      const newStaff = {
-                        ...currentStaff,
-                        id: Date.now().toString(),
-                        rating: 0,
-                        completedJobs: 0,
-                        schedule: []
-                      };
-                      setStaffList([...staffList, newStaff]);
-                    }
-                    setIsModalOpen(false);
-                  }}
-                >
-                  Lưu
-                </button>
-                <button
-                  type="button"
-                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
                   onClick={() => setIsModalOpen(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
                 >
                   Hủy
                 </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+                >
+                  {currentStaff ? 'Cập nhật' : 'Thêm mới'}
+                </button>
               </div>
-            </div>
+            </form>
           </div>
         </div>
       )}
 
-      {/* Modal lịch làm việc */}
-      {isScheduleModalOpen && selectedStaffId && (
-        <div className="fixed z-10 inset-0 overflow-y-auto">
-          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 transition-opacity" aria-hidden="true">
-              <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
+      {/* Detail Modal */}
+      {isDetailModalOpen && selectedStaff && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-2/3 max-w-4xl shadow-lg rounded-md bg-white">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-medium text-gray-900">Chi tiết nhân viên</h3>
+              <button
+                onClick={() => setIsDetailModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
             </div>
-            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <div className="sm:flex sm:items-start">
-                  <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
-                    <h3 className="text-lg leading-6 font-medium text-gray-900">
-                      Lịch làm việc - {staffList.find(s => s.id === selectedStaffId)?.name}
-                    </h3>
-                    <div className="mt-4">
-                      <div className="flex items-center space-x-4">
-                        <input
-                          type="date"
-                          className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
-                          value={selectedDate}
-                          onChange={(e) => setSelectedDate(e.target.value)}
-                        />
-                      </div>
 
-                      <div className="mt-4">
-                        <h4 className="text-sm font-medium text-gray-900">Lịch làm việc ngày {new Date(selectedDate).toLocaleDateString('vi-VN')}</h4>
-                        
-                        {/* Danh sách các slot thời gian */}
-                        <div className="mt-2 space-y-2">
-                          {getStaffSchedule(selectedStaffId, selectedDate)?.timeSlots.map((slot, index) => (
-                            <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
-                              <div>
-                                <span className="text-sm font-medium">{slot.start} - {slot.end}</span>
-                                {slot.bookingId && (
-                                  <span className="ml-2 text-xs text-blue-600">
-                                    (Đơn hàng: {slot.bookingId})
-                                  </span>
-                                )}
-                              </div>
-                              {!slot.bookingId && (
-                                <button
-                                  onClick={() => handleRemoveTimeSlot(selectedStaffId, selectedDate, index)}
-                                  className="text-red-600 hover:text-red-900"
-                                >
-                                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                  </svg>
-                                </button>
-                              )}
-                            </div>
-                          ))}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Basic Info */}
+              <div className="space-y-4">
+                <div className="flex items-center space-x-4">
+                  {selectedStaff.avatar ? (
+                    <img className="h-16 w-16 rounded-full" src={selectedStaff.avatar} alt="" />
+                  ) : (
+                    <div className="h-16 w-16 rounded-full bg-gray-300 flex items-center justify-center">
+                      <UserIcon className="h-8 w-8 text-gray-500" />
+                    </div>
+                  )}
+                  <div>
+                    <h4 className="text-lg font-medium text-gray-900">{selectedStaff.name}</h4>
+                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusBadge(selectedStaff.status)}`}>
+                      {getStatusText(selectedStaff.status)}
+                    </span>
+                  </div>
+                </div>
 
-                          {(!getStaffSchedule(selectedStaffId, selectedDate) || getStaffSchedule(selectedStaffId, selectedDate)?.timeSlots.length === 0) && (
-                            <div className="text-sm text-gray-500 italic">
-                              Không có lịch làm việc cho ngày này.
-                            </div>
-                          )}
-                        </div>
+                <div className="space-y-2">
+                  <div className="flex items-center">
+                    <EnvelopeIcon className="h-5 w-5 text-gray-400 mr-3" />
+                    <span className="text-sm text-gray-900">{selectedStaff.email}</span>
+                  </div>
+                  <div className="flex items-center">
+                    <PhoneIcon className="h-5 w-5 text-gray-400 mr-3" />
+                    <span className="text-sm text-gray-900">{selectedStaff.phone}</span>
+                  </div>
+                  <div className="flex items-center">
+                    <CalendarIcon className="h-5 w-5 text-gray-400 mr-3" />
+                    <span className="text-sm text-gray-900">Vào làm: {formatDate(selectedStaff.hireDate)}</span>
+                  </div>
+                </div>
+              </div>
 
-                        {/* Form thêm slot thời gian mới */}
-                        <div className="mt-4 border-t border-gray-200 pt-4">
-                          <h4 className="text-sm font-medium text-gray-900">Thêm khung giờ làm việc</h4>
-                          <div className="mt-2 grid grid-cols-2 gap-2">
-                            <div>
-                              <label htmlFor="startTime" className="block text-xs font-medium text-gray-700">
-                                Giờ bắt đầu
-                              </label>
-                              <input
-                                type="time"
-                                id="startTime"
-                                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
-                              />
-                            </div>
-                            <div>
-                              <label htmlFor="endTime" className="block text-xs font-medium text-gray-700">
-                                Giờ kết thúc
-                              </label>
-                              <input
-                                type="time"
-                                id="endTime"
-                                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
-                              />
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            className="mt-2 w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:text-sm"
-                            onClick={() => {
-                              const startTime = (document.getElementById('startTime') as HTMLInputElement).value;
-                              const endTime = (document.getElementById('endTime') as HTMLInputElement).value;
-                              if (startTime && endTime) {
-                                handleAddTimeSlot(selectedStaffId, selectedDate, startTime, endTime);
-                                (document.getElementById('startTime') as HTMLInputElement).value = '';
-                                (document.getElementById('endTime') as HTMLInputElement).value = '';
-                              }
-                            }}
-                          >
-                            Thêm khung giờ
-                          </button>
-                        </div>
-                      </div>
+              {/* Stats */}
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600">{selectedStaff.totalBookings}</div>
+                    <div className="text-sm text-blue-600">Tổng đơn hàng</div>
+                  </div>
+                  <div className="bg-green-50 p-4 rounded-lg">
+                    <div className="text-2xl font-bold text-green-600">{selectedStaff.completedBookings}</div>
+                    <div className="text-sm text-green-600">Đã hoàn thành</div>
+                  </div>
+                </div>
+
+                <div className="bg-yellow-50 p-4 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-2xl font-bold text-yellow-600">{selectedStaff.rating}</div>
+                      <div className="text-sm text-yellow-600">Đánh giá trung bình</div>
+                    </div>
+                    <div className="flex items-center">
+                      {renderStarRating(selectedStaff.rating)}
                     </div>
                   </div>
                 </div>
               </div>
-              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                <button
-                  type="button"
-                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
-                  onClick={() => setIsScheduleModalOpen(false)}
-                >
-                  Đóng
-                </button>
-              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="mt-6 flex justify-end space-x-3">              <button
+                onClick={() => handleUpdateStatus(
+                  selectedStaff.id, 
+                  selectedStaff.status === 'active' ? 'inactive' : 'active',
+                  selectedStaff.name
+                )}
+                className={`px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${
+                  selectedStaff.status === 'active' 
+                    ? 'bg-orange-600 hover:bg-orange-700' 
+                    : 'bg-green-600 hover:bg-green-700'
+                }`}
+              >
+                {selectedStaff.status === 'active' ? 'Tạm nghỉ' : 'Kích hoạt'}
+              </button>
+              <button
+                onClick={() => {
+                  setIsDetailModalOpen(false);
+                  handleEditStaff(selectedStaff);
+                }}
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+              >
+                Chỉnh sửa
+              </button>
             </div>
           </div>
         </div>

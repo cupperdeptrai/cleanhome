@@ -44,9 +44,14 @@ export interface AuthTokens {
  * Interface cho response từ xác thực
  */
 export interface AuthResponse {
+  status?: string; // 'success' hoặc 'error' từ backend
   user: User;
-  token?: string;
+  token?: string; // Cho register
+  access_token?: string; // Backend login trả về access_token
+  refresh_token?: string; // Backend cũng trả về refresh_token
+  expires_in?: number; // Thời gian hết hạn token
   message?: string;
+  details?: string[]; // Thêm để xử lý lỗi chi tiết từ backend
 }
 
 /**
@@ -58,12 +63,13 @@ export class AuthService {
    * Đăng nhập
    * @param data Dữ liệu đăng nhập
    * @returns Promise<AuthResponse> Thông tin người dùng và token
-   */
-  public static async login(data: LoginData): Promise<AuthResponse> {
+   */  public static async login(data: LoginData): Promise<AuthResponse> {
     try {
       const response = await ApiService.post<AuthResponse>('/auth/login', data);
-      if (response.token) {
-        localStorage.setItem('token', response.token);
+      // Backend trả về access_token, không phải token
+      const token = response.access_token || response.token;
+      if (token && response.user) {
+        localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(response.user));
       }
       return response;
@@ -77,12 +83,13 @@ export class AuthService {
    * Đăng ký
    * @param data Dữ liệu đăng ký
    * @returns Promise<AuthResponse> Thông tin người dùng và token
-   */
-  public static async register(data: RegisterData): Promise<AuthResponse> {
+   */  public static async register(data: RegisterData): Promise<AuthResponse> {
     try {
       const response = await ApiService.post<AuthResponse>('/auth/register', data);
-      if (response.token) {
-        localStorage.setItem('token', response.token);
+      // Backend có thể trả về access_token hoặc token
+      const token = response.access_token || response.token;
+      if (token && response.user) {
+        localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(response.user));
       }
       return response;
@@ -176,7 +183,6 @@ export class AuthService {
   public static isAuthenticated(): boolean {
     return !!localStorage.getItem('token');
   }
-
   /**
    * Lấy thông tin người dùng hiện tại
    * @returns User | null
@@ -185,16 +191,7 @@ export class AuthService {
     const userStr = localStorage.getItem('user');
     return userStr ? JSON.parse(userStr) : null;
   }
-  /**
-   * Lưu dữ liệu xác thực
-   * @param data Dữ liệu xác thực
-   */
-  private static setAuthData(data: AuthResponse): void {
-    if (data.token) {
-      localStorage.setItem('token', data.token);
-    }
-    localStorage.setItem('user', JSON.stringify(data.user));
-  }
+
   /**
    * Xóa dữ liệu xác thực
    */

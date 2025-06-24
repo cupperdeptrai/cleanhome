@@ -33,31 +33,53 @@ cleanhome/
 │   ├── tsconfig.json        # TypeScript configuration
 │   └── vite.config.ts       # Vite configuration
 │
-├── backend/                 # Backend Flask application
-│   ├── app/                 # Application code
-│   │   ├── api/             # API endpoints
-│   │   ├── models/          # Database models
-│   │   ├── schemas/         # Validation schemas
-│   │   ├── utils/           # Utility functions
-│   │   ├── __init__.py      # App initialization
-│   │   └── config.py        # Configuration
-│   ├── migrations/          # Database migrations
-│   ├── tests/               # Test suite
-│   ├── .env                 # Environment variables
-│   ├── .env.example         # Example environment variables
-│   ├── requirements.txt     # Python dependencies
-│   └── run.py               # Application entry point
+backend/
+├── app/
+│   ├── __init__.py              # Application factory
+│   ├── config.py                # Cấu hình theo môi trường
+│   ├── extensions.py            # Khởi tạo các extension: db, jwt, migrate, ma, cors
+│
+│   ├── models/                  # Models (SQLAlchemy)
+│   │   ├── __init__.py
+│   │   ├── user.py
+│   │   └── ...                 
+│
+│   ├── schemas/                 # Marshmallow Schemas
+│   │   ├── __init__.py
+│   │   ├── user_schema.py
+│   │   └── ...
+│
+│   ├── routes/                  # Flask Blueprints
+│   │   ├── __init__.py
+│   │   ├── auth_routes.py
+│   │   └── ...
+│
+│   ├── services/                # Business logic (optional nhưng nên có)
+│   │   ├── __init__.py
+│   │   └── user_service.py
+│
+│   ├── utils/                   # JWT utils, helpers, validators
+│   │   ├── __init__.py
+│   │   ├── jwt.py
+│   │   └── ...
+│
+│   └── cli.py                   # Custom CLI commands (optional)
+│
+├── migrations/                  # Flask-Migrate folder
+│   └── ...
+│
+├── .env                         # Env vars
+├── .flaskenv                    # FLASK_APP + FLASK_ENV
+├── requirements.txt
+├── run.py                       # Entry point
+├── config.example.env           # Env template
+└── README.md
 │
 ├── docs/                    # Documentation
 │   ├── frontend.md          # Frontend documentation
 │   ├── backend.md           # Backend documentation
 │   └── cleanhome.md         # Project overview
-│
-├── .gitignore               # Git ignore file
-├── docker-compose.yml       # Docker Compose configuration
-├── Dockerfile.frontend      # Frontend Docker configuration
-├── Dockerfile.backend       # Backend Docker configuration
-└── README.md                # Project README
+└── 
 ```
 
 ## Tài liệu
@@ -118,12 +140,5 @@ flask db upgrade
 
 # Chạy ứng dụng
 flask run
-```
-
-### Sử dụng Docker
-
-```bash
-# Chạy toàn bộ ứng dụng với Docker Compose
-docker-compose up -d
 ```
 

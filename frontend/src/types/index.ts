@@ -30,16 +30,21 @@ export interface Booking {
   serviceId: string;
   serviceName?: string; // Tên dịch vụ
   staffId?: string;
+  staffName?: string; // Tên nhân viên
   date: string;
   time: string;
   status: 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
-  address: string;
+  address?: string; // Có thể undefined từ backend
   notes?: string; // Lưu ý từ người dùng
-  price: number;
-  paymentStatus: 'paid' | 'unpaid';
+  totalAmount?: number; // Tổng tiền
+  subtotal?: number; // Tiền dịch vụ
+  discountAmount?: number; // Tiền giảm giá
+  paymentStatus?: 'paid' | 'unpaid' | 'refunded';
   paymentMethod?: 'cash' | 'bank_transfer' | 'momo' | 'zalopay' | 'vnpay';
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
+  // Giữ lại các field cũ để tương thích
+  price?: number;
 }
 
 // Kiểu dữ liệu cho khuyến mãi

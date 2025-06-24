@@ -1,77 +1,43 @@
 import { useState, FormEvent, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-// import MainLayout from '../components/Layout/MainLayout';
+import { useServiceContext } from '../context/ServiceContext';
 import Card from '../components/UI/Card';
-import Input from '../components/UI/Input';
 import Button from '../components/UI/Button';
-import { Service } from '../types';
+import PaymentMethodModal from '../components/modals/PaymentMethodModal';
+import AddressSelector, { AddressValue } from '../components/forms/AddressSelector';
+import BookingService from '../services/booking.service';
+import { formatFullAddress, getAddressNames } from '../data/vietnamAddress';
 
-// Dữ liệu dịch vụ mẫu
-const mockServices: Service[] = [
-  {
-    id: '1',
-    name: 'Vệ sinh nhà ở cơ bản',
-    description: 'Dịch vụ vệ sinh nhà ở cơ bản bao gồm quét dọn, lau chùi, vệ sinh phòng tắm và nhà bếp.',
-    price: 300000,
-    image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80',
-    category: 'Vệ sinh nhà cửa',
-    duration: 120,
-    isActive: true
-  },
-  {
-    id: '2',
-    name: 'Vệ sinh nhà ở chuyên sâu',
-    description: 'Dịch vụ vệ sinh nhà ở chuyên sâu bao gồm tất cả dịch vụ cơ bản cộng với vệ sinh kỹ các góc khó tiếp cận, vệ sinh đồ nội thất, và làm sạch cửa sổ.',
-    price: 500000,
-    image: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80',
-    category: 'Vệ sinh nhà cửa',
-    duration: 240,
-    isActive: true
-  },
-  {
-    id: '6',
-    name: 'Vệ sinh điều hòa',
-    description: 'Dịch vụ vệ sinh, bảo dưỡng điều hòa tại nhà hoặc văn phòng.',
-    price: 250000,
-    image: 'https://images.unsplash.com/photo-1581788604067-720a7e1bb6d9?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80',
-    category: 'Vệ sinh thiết bị',
-    duration: 90,
-    isActive: true
-  },
-  {
-    id: '7',
-    name: 'Vệ sinh tủ lạnh',
-    description: 'Dịch vụ vệ sinh, khử mùi tủ lạnh tại nhà.',
-    price: 200000,
-    image: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80',
-    category: 'Vệ sinh thiết bị',
-    duration: 60,
-    isActive: true
-  },
-  {
-    id: '8',
-    name: 'Phun khử khuẩn',
-    description: 'Dịch vụ phun thuốc khử khuẩn, diệt vi khuẩn cho nhà ở, văn phòng.',
-    price: 500000,
-    image: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80',
-    category: 'Vệ sinh đặc biệt',
-    duration: 120,
-    isActive: true
-  }
-];
+/**
+ * Component trang đặt lịch dịch vụ
+ * Cho phép người dùng chọn dịch vụ, thời gian và đặt lịch với phương thức thanh toán
+ */
 
 const BookingForm = () => {
   const { user } = useAuth();
+  const { services } = useServiceContext();
   const navigate = useNavigate();
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
   const serviceIdFromUrl = queryParams.get('service');
   
+  // Lấy danh sách dịch vụ đang hoạt động
+  const activeServices = services.filter(service => service.isActive);
+  
   const [selectedService, setSelectedService] = useState<string>(serviceIdFromUrl || '');
   const [date, setDate] = useState<string>('');
   const [time, setTime] = useState<string>('');
-  const [address, setAddress] = useState<string>(user?.address || '');
+  const [address, setAddress] = useState<AddressValue>({
+    city: '',
+    district: '',
+    ward: '',
+    houseNumber: '',
+    alley: '',
+    lane: '',
+    street: '',
+    specificAddress: ''
+  });
   const [notes, setNotes] = useState<string>('');
   const [formErrors, setFormErrors] = useState<{
     service?: string;
@@ -80,9 +46,11 @@ const BookingForm = () => {
     address?: string;
   }>({});
   const [bookingSuccess, setBookingSuccess] = useState<boolean>(false);
+  const [showPaymentModal, setShowPaymentModal] = useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   
   // Lấy thông tin dịch vụ đã chọn
-  const selectedServiceDetails = mockServices.find(service => service.id === selectedService);
+  const selectedServiceDetails = activeServices.find(service => service.id === selectedService);
   
   // Tính tổng tiền
   const totalPrice = selectedServiceDetails ? selectedServiceDetails.price : 0;
@@ -136,8 +104,9 @@ const BookingForm = () => {
       isValid = false;
     }
     
-    if (!address) {
-      errors.address = 'Vui lòng nhập địa chỉ';
+    // Kiểm tra địa chỉ - cần có đủ thông tin
+    if (!address.city || !address.district || !address.ward || !address.houseNumber || !address.street) {
+      errors.address = 'Vui lòng nhập đầy đủ thông tin địa chỉ (thành phố, quận/huyện, phường/xã, số nhà, tên đường)';
       isValid = false;
     }
     
@@ -145,20 +114,125 @@ const BookingForm = () => {
     return isValid;
   };
   
-  // Xử lý đặt lịch
+  /**
+   * Hàm xử lý submit form - bước đầu tiên
+   * Validate dữ liệu và hiển thị modal chọn phương thức thanh toán
+   */
+
+  // Xử lý đặt lịch - bước đầu tiên: hiển thị modal thanh toán
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     
     if (validateForm()) {
-      // Giả lập API call
+      // Hiển thị modal chọn phương thức thanh toán
+      setShowPaymentModal(true);
+    }
+  };
+
+  /**
+   * Hàm xử lý xác nhận thanh toán và tạo booking
+   * Gọi API để tạo booking mới với thông tin đã nhập
+   * @param paymentMethod - Phương thức thanh toán được chọn (hiện tại chỉ hỗ trợ 'cash')
+   */
+  const handlePaymentConfirm = async (paymentMethod: string) => {
+    try {
+      setIsSubmitting(true);
+      setShowPaymentModal(false);
+      
+      // Kiểm tra token trước khi gửi request
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setFormErrors({ service: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.' });
+        navigate('/login?redirect=booking');
+        return;
+      }
+      
+      console.log('💳 Đang tạo booking với phương thức thanh toán:', paymentMethod);
+      
+      // Lấy thông tin dịch vụ đã chọn để tính duration
+      const selectedServiceInfo = activeServices.find(s => s.id === selectedService);
+      const serviceDuration = selectedServiceInfo ? (selectedServiceInfo.duration || 120) / 60 : 2; // Chuyển từ phút sang giờ
+      
+      // Tạo chuỗi địa chỉ từ object địa chỉ theo định dạng chuẩn
+      // Lấy tên thực tế từ ID
+      const { cityName, districtName, wardName } = getAddressNames(
+        address.city, 
+        address.district, 
+        address.ward
+      );
+      
+      // Sử dụng hàm formatFullAddress để tạo địa chỉ chuẩn
+      const fullAddress = formatFullAddress(
+        address.houseNumber,
+        address.street,
+        wardName,
+        districtName, 
+        cityName,
+        address.alley,
+        address.lane,
+        address.specificAddress
+      );
+      
+      // Dữ liệu booking để gửi lên API
+      const bookingData = {
+        service_id: selectedService,
+        booking_date: date,
+        booking_time: time,
+        duration: serviceDuration, // Sử dụng duration từ selectedService (theo giờ)
+        customer_address: fullAddress, // Chuyển object thành string
+        phone: user?.phone || '', // Lấy số điện thoại từ thông tin user
+        notes: notes,
+        payment_method: paymentMethod as 'cash'
+      };
+      
+      console.log('� Selected Service ID:', selectedService);
+      console.log('🔍 Selected Service Details:', selectedServiceInfo);
+      console.log('�📋 Dữ liệu booking:', bookingData);
+      
+      // Gọi API tạo booking
+      const result = await BookingService.createBooking(bookingData);
+      
+      console.log('✅ Tạo booking thành công:', result);
+      
+      // Emit custom event để thông báo có booking mới
+      window.dispatchEvent(new CustomEvent('newBookingCreated', { 
+        detail: { booking: result } 
+      }));
+      
+      // Hiển thị thành công và chuyển hướng
+      setBookingSuccess(true);
+      
+      // Chuyển hướng đến trang đơn hàng sau 3 giây với parameter refresh
       setTimeout(() => {
-        setBookingSuccess(true);
+        navigate('/bookings?refresh=true');
+      }, 3000);
+      
+    } catch (error) {
+      console.error('❌ Lỗi khi tạo booking:', error);
+      
+      // Xử lý lỗi token expired
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { status?: number; data?: { message?: string; error?: string } } };
         
-        // Chuyển hướng đến trang đơn hàng sau 3 giây
-        setTimeout(() => {
-          navigate('/bookings');
-        }, 3000);
-      }, 1000);
+        if (axiosError.response?.status === 401) {
+          const errorData = axiosError.response.data;
+          if (errorData?.error === 'token_expired' || errorData?.message?.includes('expired')) {
+            alert('Phiên đăng nhập đã hết hạn. Bạn sẽ được chuyển đến trang đăng nhập.');
+            localStorage.removeItem('token');
+            localStorage.removeItem('refresh_token');
+            localStorage.removeItem('user');
+            navigate('/login?redirect=booking&message=session_expired');
+            return;
+          }
+        }
+        
+        const errorMessage = axiosError.response?.data?.message || 'Có lỗi xảy ra khi đặt lịch';
+        alert(errorMessage);
+      } else {
+        alert('Có lỗi xảy ra khi đặt lịch. Vui lòng thử lại.');
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
   
@@ -167,7 +241,10 @@ const BookingForm = () => {
     '08:00', '09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00'
   ];
   
-  // Tạo danh sách ngày trong 14 ngày tới
+  /**
+   * Hàm tạo danh sách ngày trong 14 ngày tới
+   * Sử dụng để hiển thị options trong dropdown chọn ngày
+   */
   const getNextTwoWeeks = () => {
     const dates = [];
     const today = new Date();
@@ -207,7 +284,7 @@ const BookingForm = () => {
                 </p>
                 <div className="mt-5">
                   <Button
-                    onClick={() => navigate('/bookings')}
+                    onClick={() => navigate('/bookings?refresh=true')}
                   >
                     Xem đơn hàng của tôi
                   </Button>
@@ -226,14 +303,18 @@ const BookingForm = () => {
                       <select
                         value={selectedService}
                         onChange={(e) => setSelectedService(e.target.value)}
+                        aria-label="Chọn dịch vụ"
                         className={`mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md ${
                           formErrors.service ? 'border-red-300' : ''
                         }`}
+                        disabled={activeServices.length === 0}
                       >
-                        <option value="">-- Chọn dịch vụ --</option>
-                        {mockServices.map((service) => (
+                        <option value="">
+                          {activeServices.length === 0 ? '-- Hiện tại không có dịch vụ nào --' : '-- Chọn dịch vụ --'}
+                        </option>
+                        {activeServices.map((service) => (
                           <option key={service.id} value={service.id}>
-                            {service.name} - {formatPrice(service.price)}
+                            {service.name} - {formatPrice(service.price)} - {service.duration ? `${service.duration}p` : '120p'}
                           </option>
                         ))}
                       </select>
@@ -250,21 +331,29 @@ const BookingForm = () => {
                         <select
                           value={date}
                           onChange={(e) => setDate(e.target.value)}
+                          aria-label="Chọn ngày"
                           className={`mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md ${
                             formErrors.date ? 'border-red-300' : ''
                           }`}
                         >
                           <option value="">-- Chọn ngày --</option>
-                          {availableDates.map((date) => (
-                            <option key={date} value={date}>
-                              {new Date(date).toLocaleDateString('vi-VN', {
-                                weekday: 'long',
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric',
-                              })}
-                            </option>
-                          ))}
+                          {availableDates.map((date) => {
+                            // Format ngày cho hiển thị với múi giờ Việt Nam
+                            const dateObj = new Date(date + 'T00:00:00');
+                            const formattedDate = dateObj.toLocaleDateString('vi-VN', {
+                              weekday: 'long',
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric',
+                              timeZone: 'Asia/Ho_Chi_Minh'
+                            });
+                            
+                            return (
+                              <option key={date} value={date}>
+                                {formattedDate}
+                              </option>
+                            );
+                          })}
                         </select>
                         {formErrors.date && (
                           <p className="mt-1 text-sm text-red-600">{formErrors.date}</p>
@@ -278,6 +367,7 @@ const BookingForm = () => {
                         <select
                           value={time}
                           onChange={(e) => setTime(e.target.value)}
+                          aria-label="Chọn giờ"
                           className={`mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md ${
                             formErrors.time ? 'border-red-300' : ''
                           }`}
@@ -296,13 +386,10 @@ const BookingForm = () => {
                     </div>
                     
                     <div>
-                      <Input
-                        label="Địa chỉ"
-                        type="text"
+                      <AddressSelector
                         value={address}
-                        onChange={(e) => setAddress(e.target.value)}
+                        onChange={(newAddress) => setAddress(newAddress)}
                         error={formErrors.address}
-                        fullWidth
                       />
                     </div>
                     
@@ -314,14 +401,18 @@ const BookingForm = () => {
                         value={notes}
                         onChange={(e) => setNotes(e.target.value)}
                         rows={4}
-                        className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                        className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm "
                         placeholder="Thông tin thêm về yêu cầu của bạn..."
                       />
                     </div>
                     
                     <div>
-                      <Button type="submit" fullWidth>
-                        Đặt lịch
+                      <Button 
+                        type="submit" 
+                        fullwidth
+                        disabled={isSubmitting}
+                      >
+                        {isSubmitting ? 'Đang xử lý...' : 'Đặt lịch'}
                       </Button>
                     </div>
                   </form>
@@ -348,11 +439,11 @@ const BookingForm = () => {
                         <div className="flex justify-between mb-2">
                           <span className="text-gray-500">Thời gian thực hiện</span>
                           <span className="text-gray-900">
-                            {selectedServiceDetails.duration >= 60
-                              ? `${Math.floor(selectedServiceDetails.duration / 60)} giờ ${
-                                  selectedServiceDetails.duration % 60 ? `${selectedServiceDetails.duration % 60} phút` : ''
+                            {(selectedServiceDetails.duration || 120) >= 60
+                              ? `${Math.floor((selectedServiceDetails.duration || 120) / 60)} giờ ${
+                                  (selectedServiceDetails.duration || 120) % 60 ? `${(selectedServiceDetails.duration || 120) % 60} phút` : ''
                                 }`
-                              : `${selectedServiceDetails.duration} phút`}
+                              : `${selectedServiceDetails.duration || 120} phút`}
                           </span>
                         </div>
                         
@@ -391,6 +482,14 @@ const BookingForm = () => {
           )}
         </div>
       </div>
+      
+      {/* Modal chọn phương thức thanh toán */}
+      <PaymentMethodModal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        onConfirm={handlePaymentConfirm}
+        totalAmount={totalPrice}
+      />
     </>
   );
 };

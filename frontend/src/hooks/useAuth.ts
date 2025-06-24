@@ -97,19 +97,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
-
   /**
    * Giả lập tải thông tin người dùng từ localStorage khi khởi động
    * Trong ứng dụng thực tế, nên xác thực token với backend
    */
   useEffect(() => {
+    const token = localStorage.getItem('token');
     const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
+    
+    if (token && storedUser) {
+      try {
+        // Parse user từ localStorage
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+      } catch (err) {
+        // Nếu có lỗi khi parse, xóa dữ liệu không hợp lệ
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      }
+    } else {
+      // Xóa tất cả dữ liệu auth nếu không đủ thông tin
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
     }
+    
     setLoading(false);
   }, []);
-
   /**
    * Hàm đăng nhập
    * @param email Email người dùng
@@ -128,8 +141,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       // Kiểm tra mật khẩu (giả lập)
       if (foundUser && password === 'password123') {
-        setUser(foundUser);
+        // Lưu thông tin người dùng vào localStorage
         localStorage.setItem('user', JSON.stringify(foundUser));
+        
+        // Tạo token giả lập
+        const token = `mock_token_${Date.now()}_${foundUser.id}`;
+        localStorage.setItem('token', token);
+        
+        // Cập nhật state
+        setUser(foundUser);
         navigate('/');
         return true;
       }
@@ -143,7 +163,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setLoading(false);
     }
   }, [navigate]);
-
   /**
    * Hàm đăng ký
    * @param name Tên người dùng
@@ -172,10 +191,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         role: 'user' 
       };
       
-      // Trong ứng dụng thực tế, sẽ gửi thông tin đăng ký lên server
-      // Ở đây chỉ mô phỏng
-      setUser(newUser);
+      // Lưu thông tin người dùng vào localStorage
       localStorage.setItem('user', JSON.stringify(newUser));
+      
+      // Tạo token giả lập
+      const token = `mock_token_${Date.now()}_${newUser.id}`;
+      localStorage.setItem('token', token);
+      
+      // Cập nhật state
+      setUser(newUser);
       navigate('/');
       return true;
     } catch (err) {
@@ -185,7 +209,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setLoading(false);
     }
   }, [navigate]);
-
   /**
    * Hàm đăng xuất
    * Xóa thông tin người dùng khỏi state và localStorage
@@ -193,6 +216,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = useCallback(() => {
     setUser(null);
     localStorage.removeItem('user');
+    localStorage.removeItem('token');
     navigate('/login');
   }, [navigate]);
 

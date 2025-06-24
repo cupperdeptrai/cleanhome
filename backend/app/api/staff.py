@@ -1,144 +1,341 @@
-from flask import Blueprint, request, jsonify
+"""
+API endpoints cho quản lý nhân viên
+Đồng bộ với schema SQL PostgreSQL
+Bảng: users (role='staff')
+Author: CleanHome Team  
+"""
+
+from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from .. import db
-from ..models.booking import StaffSchedule
-from ..models.user import User
-from ..schemas.booking import StaffScheduleSchema
-from ..utils.validators import validate_required_fields, validate_schedule_status, validate_time_range
-from ..utils.helpers import log_activity
-from sqlalchemy.exc import SQLAlchemyError
-import uuid
-from datetime import datetime
+from sqlalchemy import and_
+from app.extensions import db
+from app.models.user import User
+from app.utils.helpers import admin_required
 
-bp = Blueprint('staff', __name__)
+staff_bp = Blueprint('staff', __name__)
 
-@bp.route('/schedules', methods=['GET'])
+@staff_bp.route('/', methods=['GET'])
 @jwt_required()
-def get_schedules():
-    """Lấy danh sách lịch làm việc"""
-    current_user = db.session.query(User).filter_by(id=get_jwt_identity()).first()
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 10, type=int)
-    
+@admin_required
+def get_staff():
+    """
+    Lấy danh sách tất cả nhân viên (chỉ dành cho admin)
+    - Lọc users có role='staff' từ bảng users
+    - Bao gồm thông tin lịch làm việc
+    """
     try:
-        query = StaffSchedule.query
-        if current_user.role == 'staff':
-            query = query.filter_by(staff_id=current_user.id)
-        elif current_user.role != 'admin':
-            return jsonify({'error': 'Yêu cầu quyền admin hoặc staff'}), 403
+        # Lấy tham số query
+        page = request.args.get('page', 1, type=int)
+        limit = request.args.get('limit', 20, type=int) 
+        status = request.args.get('status')  # active/inactive
         
-        schedules = query.paginate(page=page, per_page=per_page, error_out=False)
-        schema = StaffScheduleSchema(many=True)
-        result = schema.dump(schedules.items)
+        # Query nhân viên từ bảng users với role='staff'
+        query = User.query.filter_by(role='staff')
         
-        log_activity(current_user.id, 'read', 'staff_schedule', details={'count': len(result)})
-        return jsonify({
-            'schedules': result,
-            'total': schedules.total,
-            'pages': schedules.pages,
-            'page': page
-        }), 200
-    except SQLAlchemyError as e:
-        return jsonify({'error': 'Lỗi cơ sở dữ liệu'}), 500
-
-@bp.route('/schedules', methods=['POST'])
-@jwt_required()
-def create_schedule():
-    """Tạo lịch làm việc mới (admin only)"""
-    current_user = db.session.query(User).filter_by(id=get_jwt_identity()).first()
-    if current_user.role != 'admin':
-        return jsonify({'error': 'Yêu cầu quyền admin'}), 403
-    
-    data = request.get_json()
-    required_fields = ['staff_id', 'date', 'start_time', 'end_time']
-    is_valid, missing = validate_required_fields(data, required_fields)
-    if not is_valid:
-        return jsonify({'error': f'Thiếu các trường: {", ".join(missing)}'}), 400
-    
-    is_valid, error = validate_schedule_status(data.get('status', 'available'))
-    if not is_valid:
-        return jsonify({'error': error}), 400
-    
-    is_valid, error = validate_time_range(data['start_time'], data['end_time'])
-    if not is_valid:
-        return jsonify({'error': error}), 400
-    
-    try:
-        schedule = StaffSchedule(
-            id=uuid.uuid4(),
-            staff_id=data['staff_id'],
-            date=data['date'],
-            start_time=data['start_time'],
-            end_time=data['end_time'],
-            status=data.get('status', 'available')
+        if status:
+            query = query.filter_by(status=status)
+              # Phân trang
+        staff_pagination = query.paginate(
+            page=page, per_page=limit, error_out=False
         )
-        db.session.add(schedule)
-        db.session.commit()
         
-        schema = StaffScheduleSchema()
-        result = schema.dump(schedule)
-        log_activity(current_user.id, 'create', 'staff_schedule', str(schedule.id))
-        return jsonify(result), 201
-    except SQLAlchemyError as e:
-        db.session.rollback()
-        return jsonify({'error': 'Lỗi khi tạo lịch làm việc'}), 500
+        result = []
+        for staff in staff_pagination.items:
+            result.append({
+                'id': str(staff.id),
+                'name': staff.name,
+                'email': staff.email,
+                'phone': staff.phone,
+                'status': staff.status,  # enum user_status
+                'avatar': staff.avatar,
+                'bio': staff.bio,
+                'loginCount': staff.login_count,
+                'lastLoginAt': staff.last_login_at.isoformat() if staff.last_login_at else None,
+                'createdAt': staff.created_at.isoformat() if staff.created_at else None,
+                'updatedAt': staff.updated_at.isoformat() if staff.updated_at else None
+            })
+        
+        return jsonify({
+            'status': 'success',
+            'staff': result,
+            'pagination': {
+                'page': page,
+                'pages': staff_pagination.pages,
+                'total': staff_pagination.total,
+                'per_page': limit
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Lỗi khi lấy danh sách nhân viên: {str(e)}'
+        }), 500
 
-@bp.route('/schedules/<schedule_id>', methods=['PUT'])
+@staff_bp.route('/', methods=['POST'])
 @jwt_required()
-def update_schedule(schedule_id):
-    """Cập nhật lịch làm việc (admin only)"""
-    current_user = db.session.query(User).filter_by(id=get_jwt_identity()).first()
-    if current_user.role != 'admin':
-        return jsonify({'error': 'Yêu cầu quyền admin'}), 403
-    
-    schedule = StaffSchedule.query.get(schedule_id)
-    if not schedule:
-        return jsonify({'error': 'Lịch làm việc không tồn tại'}), 404
-    
-    data = request.get_json()
-    if 'status' in data:
-        is_valid, error = validate_schedule_status(data['status'])
-        if not is_valid:
-            return jsonify({'error': error}), 400
-    
-    if 'start_time' in data and 'end_time' in data:
-        is_valid, error = validate_time_range(data['start_time'], data['end_time'])
-        if not is_valid:
-            return jsonify({'error': error}), 400
-    
+@admin_required
+def create_staff():
+    """
+    Tạo nhân viên mới (chỉ dành cho admin)
+    - Tạo user mới với role='staff'
+    - Không cần mật khẩu, sẽ được tạo tự động hoặc gửi email đặt lại
+    """
     try:
-        schedule.date = data.get('date', schedule.date)
-        schedule.start_time = data.get('start_time', schedule.start_time)
-        schedule.end_time = data.get('end_time', schedule.end_time)
-        schedule.status = data.get('status', schedule.status)
+        data = request.get_json()
+        
+        # Validate dữ liệu đầu vào
+        if not data.get('name'):
+            return jsonify({
+                'status': 'error',
+                'message': 'Tên nhân viên là bắt buộc'
+            }), 400
+            
+        if not data.get('email'):
+            return jsonify({
+                'status': 'error',
+                'message': 'Email là bắt buộc'
+            }), 400
+        
+        # Kiểm tra email đã tồn tại chưa
+        existing_user = User.query.filter_by(email=data['email']).first()
+        if existing_user:
+            return jsonify({
+                'status': 'error',
+                'message': 'Email đã tồn tại trong hệ thống'
+            }), 400
+          # Tạo mật khẩu tạm thời (có thể thay đổi sau)
+        password = data.get('password')
+        if not password:
+            # Nếu không có password được cung cấp, tạo tự động
+            import secrets
+            import string
+            password = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(8))
+            is_generated_password = True
+        else:
+            is_generated_password = False
+        
+        # Tạo user mới với role staff
+        new_staff = User(
+            name=data['name'],
+            email=data['email'],
+            phone=data.get('phone', ''),
+            role='staff',
+            status=data.get('status', 'active'),  # active, inactive, locked, pending
+            bio=data.get('bio', ''),
+            avatar=data.get('avatar', '')
+        )
+          # Set mật khẩu
+        new_staff.set_password(password)
+        
+        # Lưu vào database
+        db.session.add(new_staff)
         db.session.commit()
         
-        schema = StaffScheduleSchema()
-        result = schema.dump(schedule)
-        log_activity(current_user.id, 'update', 'staff_schedule', schedule_id)
-        return jsonify(result), 200
-    except SQLAlchemyError as e:
+        # Trả về thông tin nhân viên mới (không bao gồm mật khẩu)
+        return jsonify({
+            'status': 'success',
+            'message': 'Tạo nhân viên thành công',
+            'staff': {
+                'id': str(new_staff.id),
+                'name': new_staff.name,
+                'email': new_staff.email,
+                'phone': new_staff.phone,
+                'role': new_staff.role,
+                'status': new_staff.status,
+                'avatar': new_staff.avatar,
+                'bio': new_staff.bio,
+                'createdAt': new_staff.created_at.isoformat() if new_staff.created_at else None            },
+            'password': password if is_generated_password else None,  # Chỉ trả về password nếu được tạo tự động
+            'isGeneratedPassword': is_generated_password
+        }), 201
+        
+    except Exception as e:
         db.session.rollback()
-        return jsonify({'error': 'Lỗi khi cập nhật lịch làm việc'}), 500
+        return jsonify({
+            'status': 'error',
+            'message': f'Lỗi khi tạo nhân viên: {str(e)}'
+        }), 500
 
-@bp.route('/schedules/<schedule_id>', methods=['DELETE'])
+@staff_bp.route('/<staff_id>', methods=['PUT'])
 @jwt_required()
-def delete_schedule(schedule_id):
-    """Xóa lịch làm việc (admin only)"""
-    current_user = db.session.query(User).filter_by(id=get_jwt_identity()).first()
-    if current_user.role != 'admin':
-        return jsonify({'error': 'Yêu cầu quyền admin'}), 403
-    
-    schedule = StaffSchedule.query.get(schedule_id)
-    if not schedule:
-        return jsonify({'error': 'Lịch làm việc không tồn tại'}), 404
-    
+@admin_required
+def update_staff(staff_id):
+    """
+    Cập nhật thông tin nhân viên (chỉ dành cho admin)
+    - Cập nhật thông tin user với role='staff'
+    """
     try:
-        db.session.delete(schedule)
+        staff = User.query.filter_by(id=staff_id, role='staff').first()
+        if not staff:
+            return jsonify({
+                'status': 'error',
+                'message': 'Nhân viên không tồn tại'
+            }), 404
+        
+        data = request.get_json()
+        
+        # Validate dữ liệu đầu vào
+        if data.get('email') and data['email'] != staff.email:
+            # Kiểm tra email đã tồn tại chưa
+            existing_user = User.query.filter_by(email=data['email']).first()
+            if existing_user:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Email đã tồn tại trong hệ thống'
+                }), 400
+        
+        # Cập nhật thông tin
+        if data.get('name'):
+            staff.name = data['name']
+        if data.get('email'):
+            staff.email = data['email']
+        if data.get('phone'):
+            staff.phone = data['phone']
+        if data.get('status'):
+            staff.status = data['status']
+        if data.get('bio'):
+            staff.bio = data['bio']
+        if data.get('avatar'):
+            staff.avatar = data['avatar']
+        
+        # Cập nhật mật khẩu nếu có
+        if data.get('password'):
+            staff.set_password(data['password'])
+        
+        # Lưu vào database
         db.session.commit()
         
-        log_activity(current_user.id, 'delete', 'staff_schedule', schedule_id)
-        return jsonify({'message': 'Lịch làm việc đã được xóa'}), 200
-    except SQLAlchemyError as e:
+        # Trả về thông tin nhân viên đã cập nhật
+        return jsonify({
+            'status': 'success',
+            'message': 'Cập nhật nhân viên thành công',
+            'staff': {
+                'id': str(staff.id),
+                'name': staff.name,
+                'email': staff.email,
+                'phone': staff.phone,
+                'role': staff.role,
+                'status': staff.status,
+                'avatar': staff.avatar,
+                'bio': staff.bio,
+                'updatedAt': staff.updated_at.isoformat() if staff.updated_at else None
+            }
+        }), 200
+        
+    except Exception as e:
         db.session.rollback()
-        return jsonify({'error': 'Lỗi khi xóa lịch làm việc'}), 500
+        return jsonify({
+            'status': 'error',
+            'message': f'Lỗi khi cập nhật nhân viên: {str(e)}'
+        }), 500
+
+@staff_bp.route('/<staff_id>/status', methods=['PUT'])
+@jwt_required()
+@admin_required
+def update_staff_status(staff_id):
+    """
+    Cập nhật trạng thái nhân viên (chỉ dành cho admin)
+    """
+    try:
+        # Log request info
+        from flask import current_app
+        current_app.logger.info(f"Updating staff status - ID: {staff_id}")
+        
+        staff = User.query.filter_by(id=staff_id, role='staff').first()
+        if not staff:
+            current_app.logger.warning(f"Staff not found - ID: {staff_id}")
+            return jsonify({
+                'status': 'error',
+                'message': 'Nhân viên không tồn tại'
+            }), 404
+        
+        data = request.get_json()
+        new_status = data.get('status')
+        
+        current_app.logger.info(f"Staff {staff_id} status change: {staff.status} -> {new_status}")
+        
+        if not new_status or new_status not in ['active', 'inactive', 'locked', 'pending']:
+            current_app.logger.error(f"Invalid status: {new_status}")
+            return jsonify({
+                'status': 'error',
+                'message': 'Trạng thái không hợp lệ'
+            }), 400
+        
+        # Cập nhật trạng thái
+        old_status = staff.status
+        staff.status = new_status
+        db.session.commit()
+        
+        current_app.logger.info(f"Successfully updated staff {staff_id} status: {old_status} -> {new_status}")
+        
+        response_data = {
+            'status': 'success',
+            'message': 'Cập nhật trạng thái thành công',
+            'staff': {
+                'id': str(staff.id),
+                'name': staff.name,
+                'email': staff.email,
+                'status': staff.status
+            }
+        }
+        
+        current_app.logger.info(f"Sending response: {response_data}")
+        return jsonify(response_data), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error updating staff status: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Lỗi khi cập nhật trạng thái: {str(e)}'
+        }), 500
+
+@staff_bp.route('/<staff_id>', methods=['DELETE'])
+@jwt_required()
+@admin_required
+def delete_staff(staff_id):
+    """
+    Xóa nhân viên (chỉ dành cho admin)
+    - Xóa user với role='staff'
+    - Kiểm tra các ràng buộc trước khi xóa
+    """
+    try:
+        staff = User.query.filter_by(id=staff_id, role='staff').first()
+        if not staff:
+            return jsonify({
+                'status': 'error',
+                'message': 'Nhân viên không tồn tại'
+            }), 404
+          # Kiểm tra các ràng buộc (booking đang hoạt động, etc.)
+        from app.models.booking import Booking
+        active_bookings = Booking.query.filter_by(
+            staff_id=staff_id,
+            status='in_progress'
+        ).count()
+        
+        if active_bookings > 0:
+            return jsonify({
+                'status': 'error',
+                'message': f'Không thể xóa nhân viên vì có {active_bookings} booking đang thực hiện'
+            }), 400
+          # Cập nhật các booking đã hoàn thành để không mất dữ liệu lịch sử
+        completed_bookings = Booking.query.filter_by(staff_id=staff_id).all()
+        for booking in completed_bookings:
+            booking.staff_id = None  # Hoặc gán cho admin
+        
+        # Xóa nhân viên
+        db.session.delete(staff)
+        db.session.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Xóa nhân viên thành công'
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'status': 'error',
+            'message': f'Lỗi khi xóa nhân viên: {str(e)}'
+        }), 500

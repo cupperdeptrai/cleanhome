@@ -1,6 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
+import { ServiceProvider } from './context/ServiceContext';
 
 // Layouts
 import MainLayout from './components/Layout/MainLayout';
@@ -10,10 +11,12 @@ import DashboardLayout from './components/Layout/DashboardLayout';
 import Home from './pages/Home';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
+import ForgotPassword from './pages/auth/ForgotPassword';
 import Services from './pages/Services';
 import BookingForm from './pages/BookingForm';
 import Bookings from './pages/Bookings';
 import Profile from './pages/Profile';
+import Security from './pages/Security';
 import Support from './pages/Support';
 
 // Admin Pages
@@ -62,11 +65,13 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
 const App: React.FC = () => {
   return (
-    <Routes>
+    <ServiceProvider>
+      <Routes>
       {/* Public Routes */}
       <Route path="/" element={<MainLayout><Home /></MainLayout>} />
       <Route path="/login" element={<MainLayout><Login /></MainLayout>} />
       <Route path="/register" element={<MainLayout><Register /></MainLayout>} />
+      <Route path="/forgot-password" element={<MainLayout><ForgotPassword /></MainLayout>} />
       <Route path="/services" element={<MainLayout><Services /></MainLayout>} />
       <Route path="/support" element={<MainLayout><Support /></MainLayout>} />
       
@@ -84,6 +89,16 @@ const App: React.FC = () => {
       <Route path="/profile" element={
         <ProtectedRoute>
           <MainLayout><Profile /></MainLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/profile/:section" element={
+        <ProtectedRoute>
+          <MainLayout><Profile /></MainLayout>
+        </ProtectedRoute>
+      } />
+      <Route path="/security" element={
+        <ProtectedRoute>
+          <MainLayout><Security /></MainLayout>
         </ProtectedRoute>
       } />
       
@@ -132,6 +147,7 @@ const App: React.FC = () => {
       {/* Fallback Route */}
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
+    </ServiceProvider>
   );
 };
 

@@ -1,364 +1,318 @@
+"""Utility functions for validation"""
+
 import re
-from datetime import datetime, date, time
 import uuid
-from .helpers import is_valid_email, is_valid_phone_number, is_valid_uuid
-
-# Danh sách các giá trị enum
-USER_ROLES = ['customer', 'staff', 'admin']
-USER_STATUSES = ['active', 'locked']
-SERVICE_STATUSES = ['active', 'inactive']
-BOOKING_STATUSES = ['pending', 'confirmed', 'in_progress', 'completed', 'cancelled']
-PAYMENT_STATUSES = ['unpaid', 'paid']
-PAYMENT_METHODS = ['cash', 'bank_transfer', 'credit_card', 'momo', 'zalopay']
-DISCOUNT_TYPES = ['percentage', 'fixed']
-SCHEDULE_STATUSES = ['available', 'booked', 'off']
-TRANSACTION_STATUSES = ['pending', 'completed', 'failed', 'refunded']
+from typing import Any, Optional
 
 
-def validate_required_fields(data, required_fields):
+def validate_uuid(uuid_string: str) -> bool:
     """
-    Kiểm tra xem tất cả các trường bắt buộc có được cung cấp không
-    ---
+    Validate if a string is a valid UUID
+    
     Args:
-        data (dict): Dữ liệu cần kiểm tra
-        required_fields (list): Danh sách các trường bắt buộc
-    
+        uuid_string: String to validate
+        
     Returns:
-        tuple: (is_valid, missing_fields)
-    """
-    missing_fields = [field for field in required_fields if field not in data or data[field] is None]
-    return len(missing_fields) == 0, missing_fields
-
-
-def validate_enum_value(value, allowed_values, field_name=None):
-    """
-    Kiểm tra giá trị có nằm trong danh sách giá trị cho phép hay không
-    ---
-    Args:
-        value: Giá trị cần kiểm tra
-        allowed_values (list): Danh sách giá trị cho phép
-        field_name (str, optional): Tên trường để hiển thị trong thông báo lỗi
-    
-    Returns:
-        tuple: (is_valid, error_message)
-    """
-    if value in allowed_values:
-        return True, None
-    
-    field_text = f"'{field_name}' " if field_name else ""
-    return False, f"Giá trị {field_text}'{value}' không hợp lệ. Phải là một trong {', '.join(allowed_values)}."
-
-
-def validate_user_role(role):
-    """
-    Kiểm tra vai trò người dùng có hợp lệ không
-    ---
-    Args:
-        role (str): Vai trò cần kiểm tra
-    
-    Returns:
-        tuple: (is_valid, error_message)
-    """
-    return validate_enum_value(role, USER_ROLES, 'role')
-
-
-def validate_user_status(status):
-    """
-    Kiểm tra trạng thái người dùng có hợp lệ không
-    ---
-    Args:
-        status (str): Trạng thái cần kiểm tra
-    
-    Returns:
-        tuple: (is_valid, error_message)
-    """
-    return validate_enum_value(status, USER_STATUSES, 'status')
-
-
-def validate_service_status(status):
-    """
-    Kiểm tra trạng thái dịch vụ có hợp lệ không
-    ---
-    Args:
-        status (str): Trạng thái cần kiểm tra
-    
-    Returns:
-        tuple: (is_valid, error_message)
-    """
-    return validate_enum_value(status, SERVICE_STATUSES, 'status')
-
-
-def validate_booking_status(status):
-    """
-    Kiểm tra trạng thái đặt lịch có hợp lệ không
-    ---
-    Args:
-        status (str): Trạng thái cần kiểm tra
-    
-    Returns:
-        tuple: (is_valid, error_message)
-    """
-    return validate_enum_value(status, BOOKING_STATUSES, 'status')
-
-
-def validate_payment_status(status):
-    """
-    Kiểm tra trạng thái thanh toán có hợp lệ không
-    ---
-    Args:
-        status (str): Trạng thái cần kiểm tra
-    
-    Returns:
-        tuple: (is_valid, error_message)
-    """
-    return validate_enum_value(status, PAYMENT_STATUSES, 'payment_status')
-
-
-def validate_payment_method(method):
-    """
-    Kiểm tra phương thức thanh toán có hợp lệ không
-    ---
-    Args:
-        method (str): Phương thức cần kiểm tra
-    
-    Returns:
-        tuple: (is_valid, error_message)
-    """
-    return validate_enum_value(method, PAYMENT_METHODS, 'payment_method')
-
-
-def validate_discount_type(discount_type):
-    """
-    Kiểm tra loại giảm giá có hợp lệ không
-    ---
-    Args:
-        discount_type (str): Loại giảm giá cần kiểm tra
-    
-    Returns:
-        tuple: (is_valid, error_message)
-    """
-    return validate_enum_value(discount_type, DISCOUNT_TYPES, 'discount_type')
-
-
-def validate_schedule_status(status):
-    """
-    Kiểm tra trạng thái lịch làm việc có hợp lệ không
-    ---
-    Args:
-        status (str): Trạng thái cần kiểm tra
-    
-    Returns:
-        tuple: (is_valid, error_message)
-    """
-    return validate_enum_value(status, SCHEDULE_STATUSES, 'status')
-
-
-def validate_transaction_status(status):
-    """
-    Kiểm tra trạng thái giao dịch có hợp lệ không
-    ---
-    Args:
-        status (str): Trạng thái cần kiểm tra
-    
-    Returns:
-        tuple: (is_valid, error_message)
-    """
-    return validate_enum_value(status, TRANSACTION_STATUSES, 'status')
-
-
-def validate_uuid_format(value, field_name=None):
-    """
-    Kiểm tra chuỗi có phải là UUID hợp lệ không
-    ---
-    Args:
-        value: Giá trị cần kiểm tra
-        field_name (str, optional): Tên trường để hiển thị trong thông báo lỗi
-    
-    Returns:
-        tuple: (is_valid, error_message)
-    """
-    if is_valid_uuid(value):
-        return True, None
-    
-    field_text = f"{field_name} " if field_name else ""
-    return False, f"{field_text}phải là UUID hợp lệ."
-
-
-def validate_email_format(email):
-    """
-    Kiểm tra định dạng email có hợp lệ không
-    ---
-    Args:
-        email (str): Email cần kiểm tra
-    
-    Returns:
-        tuple: (is_valid, error_message)
-    """
-    if is_valid_email(email):
-        return True, None
-    return False, "Định dạng email không hợp lệ."
-
-
-def validate_phone_format(phone):
-    """
-    Kiểm tra định dạng số điện thoại có hợp lệ không
-    ---
-    Args:
-        phone (str): Số điện thoại cần kiểm tra
-    
-    Returns:
-        tuple: (is_valid, error_message)
-    """
-    if not phone:  # Số điện thoại có thể không bắt buộc
-        return True, None
-    
-    if is_valid_phone_number(phone):
-        return True, None
-    return False, "Định dạng số điện thoại không hợp lệ. Ví dụ đúng: 0912345678, +84912345678"
-
-
-def validate_date_format(date_str, format_str="%Y-%m-%d"):
-    """
-    Kiểm tra chuỗi ngày tháng có đúng định dạng không
-    ---
-    Args:
-        date_str (str): Chuỗi ngày tháng cần kiểm tra
-        format_str (str): Định dạng ngày tháng mong muốn
-    
-    Returns:
-        tuple: (is_valid, error_message)
+        bool: True if valid UUID, False otherwise
     """
     try:
-        datetime.strptime(date_str, format_str)
-        return True, None
-    except ValueError:
-        return False, f"Định dạng ngày tháng không hợp lệ. Ví dụ đúng: {datetime.now().strftime(format_str)}"
-
-
-def validate_time_format(time_str, format_str="%H:%M"):
-    """
-    Kiểm tra chuỗi thời gian có đúng định dạng không
-    ---
-    Args:
-        time_str (str): Chuỗi thời gian cần kiểm tra
-        format_str (str): Định dạng thời gian mong muốn
-    
-    Returns:
-        tuple: (is_valid, error_message)
-    """
-    try:
-        datetime.strptime(time_str, format_str)
-        return True, None
-    except ValueError:
-        return False, f"Định dạng thời gian không hợp lệ. Ví dụ đúng: {datetime.now().strftime(format_str)}"
-
-
-def validate_positive_number(value, field_name=None, include_zero=False):
-    """
-    Kiểm tra giá trị có phải là số dương không
-    ---
-    Args:
-        value: Giá trị cần kiểm tra
-        field_name (str, optional): Tên trường để hiển thị trong thông báo lỗi
-        include_zero (bool): Có bao gồm số 0 hay không
-    
-    Returns:
-        tuple: (is_valid, error_message)
-    """
-    try:
-        num_value = float(value)
-        if include_zero:
-            if num_value >= 0:
-                return True, None
-            operator = ">="
-        else:
-            if num_value > 0:
-                return True, None
-            operator = ">"
-            
-        field_text = f"{field_name} " if field_name else "Giá trị "
-        return False, f"{field_text}phải {operator} 0."
+        uuid.UUID(uuid_string)
+        return True
     except (ValueError, TypeError):
-        field_text = f"{field_name} " if field_name else ""
-        return False, f"{field_text}phải là số."
+        return False
 
 
-def validate_rating(rating):
+def validate_phone_number(phone: str) -> bool:
     """
-    Kiểm tra xếp hạng có nằm trong phạm vi hợp lệ không (1-5)
-    ---
-    Args:
-        rating: Giá trị xếp hạng cần kiểm tra
+    Validate Vietnamese phone number format
     
+    Args:
+        phone: Phone number string
+        
+    Returns:
+        bool: True if valid, False otherwise
+    """
+    if not phone:
+        return False
+    
+    # Remove spaces and special characters
+    clean_phone = re.sub(r'[\s\-\(\)\+]', '', phone)
+    
+    # Vietnamese phone number patterns
+    patterns = [
+        r'^(84|0)[3-9]\d{8}$',  # Vietnamese mobile
+        r'^(84|0)2\d{8}$',      # Vietnamese landline
+    ]
+    
+    return any(re.match(pattern, clean_phone) for pattern in patterns)
+
+
+def validate_email(email: str) -> bool:
+    """
+    Validate email format
+    
+    Args:
+        email: Email string
+        
+    Returns:
+        bool: True if valid, False otherwise
+    """
+    if not email:
+        return False
+    
+    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return re.match(pattern, email) is not None
+
+
+def validate_password_strength(password: str) -> tuple[bool, list[str]]:
+    """
+    Validate password strength
+    
+    Args:
+        password: Password string
+        
+    Returns:
+        tuple: (is_valid, list_of_errors)
+    """
+    errors = []
+    
+    if len(password) < 6:
+        errors.append("Password must be at least 6 characters long")
+    
+    if len(password) > 128:
+        errors.append("Password must be no more than 128 characters long")
+    
+    if not re.search(r'[A-Za-z]', password):
+        errors.append("Password must contain at least one letter")
+    
+    if not re.search(r'\d', password):
+        errors.append("Password must contain at least one number")
+    
+    # Check for common weak passwords
+    weak_passwords = [
+        '123456', 'password', '123456789', '12345678', '12345',
+        '1234567', '1234567890', 'qwerty', 'abc123', 'password123'
+    ]
+    
+    if password.lower() in weak_passwords:
+        errors.append("Password is too common")
+    
+    return len(errors) == 0, errors
+
+
+def validate_password(password: str) -> dict:
+    """
+    Validate password and return detailed result
+    
+    Args:
+        password: Password string
+        
+    Returns:
+        dict: {
+            'valid': bool,
+            'errors': list,
+            'strength': str
+        }
+    """
+    if not password:
+        return {
+            'valid': False,
+            'errors': ['Password is required'],
+            'strength': 'weak'
+        }
+    
+    is_valid, errors = validate_password_strength(password)
+    
+    # Determine password strength
+    strength_score = 0
+    
+    if len(password) >= 8:
+        strength_score += 1
+    if re.search(r'[a-z]', password):
+        strength_score += 1
+    if re.search(r'[A-Z]', password):
+        strength_score += 1
+    if re.search(r'\d', password):
+        strength_score += 1
+    if re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
+        strength_score += 1
+    
+    if strength_score >= 4:
+        strength = 'strong'
+    elif strength_score >= 3:
+        strength = 'medium'
+    else:
+        strength = 'weak'
+    
+    return {
+        'valid': is_valid,
+        'errors': errors,
+        'strength': strength
+    }
+
+
+def sanitize_string(value: Any, max_length: Optional[int] = None) -> str:
+    """
+    Sanitize string input
+    
+    Args:
+        value: Input value
+        max_length: Maximum allowed length
+        
+    Returns:
+        str: Sanitized string
+    """
+    if value is None:
+        return ""
+    
+    # Convert to string and strip whitespace
+    sanitized = str(value).strip()
+    
+    # Remove potentially dangerous characters
+    sanitized = re.sub(r'[<>"\']', '', sanitized)
+    
+    # Truncate if necessary
+    if max_length and len(sanitized) > max_length:
+        sanitized = sanitized[:max_length]
+    
+    return sanitized
+
+
+def validate_coordinate(lat: Optional[float], lng: Optional[float]) -> bool:
+    """
+    Validate latitude and longitude coordinates
+    
+    Args:
+        lat: Latitude
+        lng: Longitude
+        
+    Returns:
+        bool: True if valid coordinates, False otherwise
+    """
+    if lat is None and lng is None:
+        return True  # Both None is acceptable
+    
+    if lat is None or lng is None:
+        return False  # One None and one not None is invalid
+    
+    # Check latitude range
+    if not (-90 <= lat <= 90):
+        return False
+    
+    # Check longitude range
+    if not (-180 <= lng <= 180):
+        return False
+    
+    return True
+
+
+def validate_vietnamese_address_components(district: str, city: str) -> bool:
+    """
+    Validate Vietnamese address components
+    
+    Args:
+        district: District name
+        city: City name
+        
+    Returns:
+        bool: True if valid, False otherwise
+    """
+    # Vietnamese cities
+    valid_cities = [
+        'Hà Nội', 'Hồ Chí Minh', 'Đà Nẵng', 'Hải Phòng', 'Cần Thơ',
+        'An Giang', 'Bà Rịa - Vũng Tàu', 'Bắc Giang', 'Bắc Kạn', 'Bạc Liêu',
+        'Bắc Ninh', 'Bến Tre', 'Bình Định', 'Bình Dương', 'Bình Phước',
+        'Bình Thuận', 'Cà Mau', 'Cao Bằng', 'Đắk Lắk', 'Đắk Nông',
+        'Điện Biên', 'Đồng Nai', 'Đồng Tháp', 'Gia Lai', 'Hà Giang',
+        'Hà Nam', 'Hà Tĩnh', 'Hải Dương', 'Hậu Giang', 'Hòa Bình',
+        'Hưng Yên', 'Khánh Hòa', 'Kiên Giang', 'Kon Tum', 'Lai Châu',
+        'Lâm Đồng', 'Lạng Sơn', 'Lào Cai', 'Long An', 'Nam Định',
+        'Nghệ An', 'Ninh Bình', 'Ninh Thuận', 'Phú Thọ', 'Phú Yên',
+        'Quảng Bình', 'Quảng Nam', 'Quảng Ngãi', 'Quảng Ninh', 'Quảng Trị',
+        'Sóc Trăng', 'Sơn La', 'Tây Ninh', 'Thái Bình', 'Thái Nguyên',
+        'Thanh Hóa', 'Thừa Thiên Huế', 'Tiền Giang', 'Trà Vinh', 'Tuyên Quang',
+        'Vĩnh Long', 'Vĩnh Phúc', 'Yên Bái'
+    ]
+    
+    # For now, just check if they are non-empty strings
+    # In production, you might want to validate against actual district/city data
+    return bool(district and district.strip()) and bool(city and city.strip())
+
+
+def validate_postal_code(postal_code: Optional[str]) -> bool:
+    """
+    Validate Vietnamese postal code
+    
+    Args:
+        postal_code: Postal code string
+        
+    Returns:
+        bool: True if valid, False otherwise
+    """
+    if not postal_code:
+        return True  # Postal code is optional
+    
+    # Vietnamese postal codes are 6 digits
+    pattern = r'^\d{6}$'
+    return re.match(pattern, postal_code) is not None
+
+
+def validate_service_data(data: dict) -> tuple[bool, str]:
+    """
+    Validate service data
+    
+    Args:
+        data: Service data dictionary
+        
     Returns:
         tuple: (is_valid, error_message)
     """
+    # Check required fields
+    required_fields = ['name', 'description', 'price', 'category']
+    for field in required_fields:
+        if not data.get(field):
+            return False, f'{field} is required'
+    
+    # Validate name
+    name = data.get('name', '').strip()
+    if len(name) < 3:
+        return False, 'Service name must be at least 3 characters'
+    if len(name) > 100:
+        return False, 'Service name must be less than 100 characters'
+    
+    # Validate description
+    description = data.get('description', '').strip()
+    if len(description) < 10:
+        return False, 'Service description must be at least 10 characters'
+    if len(description) > 1000:
+        return False, 'Service description must be less than 1000 characters'
+    
+    # Validate price
     try:
-        rating_value = int(rating)
-        if 1 <= rating_value <= 5:
-            return True, None
-        return False, "Xếp hạng phải từ 1 đến 5 sao."
+        price = float(data.get('price', 0))
+        if price < 0:
+            return False, 'Service price must be non-negative'
+        if price > 10000000:  # 10 million VND max
+            return False, 'Service price is too high'
     except (ValueError, TypeError):
-        return False, "Xếp hạng phải là số nguyên."
-
-
-def validate_promotion_dates(start_date, end_date):
-    """
-    Kiểm tra ngày bắt đầu và kết thúc khuyến mãi có hợp lệ không
-    ---
-    Args:
-        start_date (str or date): Ngày bắt đầu
-        end_date (str or date): Ngày kết thúc
+        return False, 'Invalid price format'
     
-    Returns:
-        tuple: (is_valid, error_message)
-    """
-    # Chuyển đổi chuỗi ngày thành đối tượng date nếu cần
-    if isinstance(start_date, str):
+    # Validate category
+    category = data.get('category', '').strip()
+    if len(category) < 2:
+        return False, 'Service category must be at least 2 characters'
+    
+    # Validate duration if provided
+    duration = data.get('duration')
+    if duration is not None:
         try:
-            start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
-        except ValueError:
-            return False, "Định dạng ngày bắt đầu không hợp lệ. Sử dụng định dạng YYYY-MM-DD."
+            duration_int = int(duration)
+            if duration_int < 0:
+                return False, 'Service duration must be non-negative'
+            if duration_int > 1440:  # 24 hours max
+                return False, 'Service duration cannot exceed 24 hours'
+        except (ValueError, TypeError):
+            return False, 'Invalid duration format'
     
-    if isinstance(end_date, str):
-        try:
-            end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
-        except ValueError:
-            return False, "Định dạng ngày kết thúc không hợp lệ. Sử dụng định dạng YYYY-MM-DD."
-    
-    # Kiểm tra ngày kết thúc phải sau ngày bắt đầu
-    if end_date < start_date:
-        return False, "Ngày kết thúc phải sau ngày bắt đầu."
-    
-    return True, None
+    return True, ''
 
-
-def validate_time_range(start_time, end_time):
-    """
-    Kiểm tra khoảng thời gian có hợp lệ không
-    ---
-    Args:
-        start_time (str or time): Thời gian bắt đầu
-        end_time (str or time): Thời gian kết thúc
-    
-    Returns:
-        tuple: (is_valid, error_message)
-    """
-    # Chuyển đổi chuỗi thời gian thành đối tượng time nếu cần
-    if isinstance(start_time, str):
-        try:
-            start_time = datetime.strptime(start_time, "%H:%M").time()
-        except ValueError:
-            return False, "Định dạng thời gian bắt đầu không hợp lệ. Sử dụng định dạng HH:MM."
-    
-    if isinstance(end_time, str):
-        try:
-            end_time = datetime.strptime(end_time, "%H:%M").time()
-        except ValueError:
-            return False, "Định dạng thời gian kết thúc không hợp lệ. Sử dụng định dạng HH:MM."
-    
-    # Kiểm tra thời gian kết thúc phải sau thời gian bắt đầu
-    if end_time <= start_time:
-        return False, "Thời gian kết thúc phải sau thời gian bắt đầu."
-    
-    return True, None

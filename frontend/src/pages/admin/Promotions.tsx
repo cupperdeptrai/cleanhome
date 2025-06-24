@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import DashboardLayout from '../../components/Layout/DashboardLayout';
 import { Promotion } from '../../types';
 
 /**
@@ -89,6 +88,14 @@ const Promotions: React.FC = () => {
   const [currentPromotion, setCurrentPromotion] = useState<Promotion | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
+
+  // Hàm reset filters
+  const resetFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('all');
+    setTypeFilter('all');
+  };
 
   // Mở modal thêm khuyến mãi mới
   const handleAddPromotion = () => {
@@ -144,7 +151,11 @@ const Promotions: React.FC = () => {
                           (statusFilter === 'active' && promotion.isActive) ||
                           (statusFilter === 'inactive' && !promotion.isActive);
     
-    return matchesSearch && matchesStatus;
+    const matchesType = typeFilter === 'all' || 
+                        (typeFilter === 'percentage' && promotion.discountType === 'percentage') ||
+                        (typeFilter === 'fixed' && promotion.discountType === 'fixed');
+    
+    return matchesSearch && matchesStatus && matchesType;
   });
 
   // Kiểm tra xem khuyến mãi có hết hạn chưa
@@ -159,119 +170,235 @@ const Promotions: React.FC = () => {
 
   return (
     <>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
-        <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-semibold text-gray-900">Quản lý khuyến mãi</h1>
-          <button
-            onClick={handleAddPromotion}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-          >
-            <svg className="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-            Thêm khuyến mãi mới
-          </button>
-        </div>
+      <div className="min-h-screen bg-gray-50 p-2 sm:p-4">
+        <div className="max-w-full space-y-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Quản lý khuyến mãi</h1>
+            <button
+              onClick={handleAddPromotion}
+              className="w-full sm:w-auto inline-flex items-center px-4 lg:px-6 py-2 lg:py-3 border border-transparent rounded-lg shadow-sm text-sm lg:text-base font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <svg className="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              Thêm khuyến mãi mới
+            </button>
+          </div>
 
-        {/* Bộ lọc và tìm kiếm */}
-        <div className="mt-6 bg-white shadow rounded-lg p-4">
-          <div className="md:flex md:items-center md:justify-between">
-            <div className="flex-1 min-w-0">
-              <div className="relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
+          {/* Bộ lọc và tìm kiếm - Full Width */}
+          <div className="bg-white shadow-sm rounded-lg p-3 lg:p-4 border">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-4">
+              <div className="lg:col-span-2">
+                <label htmlFor="search" className="block text-xs lg:text-sm font-medium text-gray-700 mb-1">
+                  Tìm kiếm khuyến mãi
+                </label>
+                <div className="relative rounded-md shadow-sm">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg className="h-4 w-4 lg:h-5 lg:w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </div>
+                  <input
+                    type="text"
+                    id="search"
+                    className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-9 lg:pl-10 pr-3 py-2 text-sm lg:text-base border-gray-300 rounded-md"
+                    placeholder="Nhập mã hoặc tên khuyến mãi..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
                 </div>
-                <input
-                  type="text"
-                  className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md"
-                  placeholder="Tìm kiếm theo mã, tên khuyến mãi..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
+              </div>
+              
+              <div>
+                <label htmlFor="status-filter" className="block text-xs lg:text-sm font-medium text-gray-700 mb-1">
+                  Trạng thái
+                </label>
+                <select
+                  id="status-filter"
+                  className="block w-full px-3 py-2 text-sm lg:text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 rounded-md bg-white"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  aria-label="Lọc theo trạng thái khuyến mãi"
+                >
+                  <option value="all">Tất cả trạng thái</option>
+                  <option value="active">Đang hoạt động</option>
+                  <option value="inactive">Tạm ngưng</option>
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="type-filter" className="block text-xs lg:text-sm font-medium text-gray-700 mb-1">
+                  Loại giảm giá
+                </label>
+                <select
+                  id="type-filter"
+                  className="block w-full px-3 py-2 text-sm lg:text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 rounded-md bg-white"
+                  value={typeFilter}
+                  onChange={(e) => setTypeFilter(e.target.value)}
+                >
+                  <option value="all">Tất cả loại</option>
+                  <option value="percentage">Phần trăm (%)</option>
+                  <option value="fixed">Số tiền cố định</option>
+                </select>
+              </div>
+              
+              <div className="flex flex-col justify-end">
+                <div className="text-xs lg:text-sm text-gray-500 mb-1 lg:mb-2">
+                  Tổng: <span className="font-semibold text-blue-600">{filteredPromotions.length}</span> khuyến mãi
+                </div>
+                <button
+                  onClick={resetFilters}
+                  className="w-full bg-gray-500 text-white px-3 py-2 rounded-md hover:bg-gray-600 text-xs lg:text-sm font-medium"
+                >
+                  Đặt lại bộ lọc
+                </button>
               </div>
             </div>
-            <div className="mt-4 md:mt-0 md:ml-4">
-              <select
-                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-              >
-                <option value="all">Tất cả trạng thái</option>
-                <option value="active">Đang hoạt động</option>
-                <option value="inactive">Tạm ngưng</option>
-              </select>
-            </div>
           </div>
-        </div>
 
-        {/* Danh sách khuyến mãi */}
-        <div className="mt-6 bg-white shadow overflow-hidden rounded-lg">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
+          {/* Danh sách khuyến mãi - Responsive Design */}
+          <div className="mt-6 bg-white shadow overflow-hidden rounded-lg">
+          {/* Desktop Table View */}
+          <div className="hidden lg:block">
+            <table className="w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Mã khuyến mãi
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Tên & Mô tả
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Tên & Chi tiết
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Giảm giá
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Thời gian & Trạng thái
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Thời gian
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Trạng thái
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Sử dụng
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Hành động
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Thao tác
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredPromotions.map((promotion) => (
-                  <tr key={promotion.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {promotion.code}
+                  <tr key={promotion.id} className="hover:bg-gray-50">
+                    {/* Cột 1: Mã khuyến mãi */}
+                    <td className="px-4 py-4">
+                      <div>
+                        <div className="text-sm font-bold text-blue-600">{promotion.code}</div>
+                        <div className="text-sm text-gray-900">
+                          {promotion.discountType === 'percentage' 
+                            ? `${promotion.discountValue}%` 
+                            : formatCurrency(promotion.discountValue)
+                          }
+                        </div>
+                        {(promotion.minOrderValue || 0) > 0 && (
+                          <div className="text-xs text-gray-500">
+                            Tối thiểu: {formatCurrency(promotion.minOrderValue || 0)}
+                          </div>
+                        )}
+                      </div>
                     </td>
-                    <td className="px-6 py-4">
+                    
+                    {/* Cột 2: Tên & mô tả */}
+                    <td className="px-4 py-4">
+                      <div>
+                        <div className="text-sm font-medium text-gray-900">{promotion.name}</div>
+                        <div className="text-sm text-gray-500 overflow-hidden max-w-xs">
+                          <div className="truncate">{promotion.description}</div>
+                        </div>
+                        {promotion.maxDiscount && (
+                          <div className="text-xs text-orange-600 mt-1">
+                            Giảm tối đa: {formatCurrency(promotion.maxDiscount)}
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    
+                    {/* Cột 3: Thời gian & trạng thái */}
+                    <td className="px-4 py-4">
+                      <div>
+                        <div className="text-sm text-gray-900">
+                          {new Date(promotion.startDate).toLocaleDateString('vi-VN')}
+                        </div>
+                        <div className="text-sm text-gray-900">
+                          đến {new Date(promotion.endDate).toLocaleDateString('vi-VN')}
+                        </div>
+                        <div className="mt-2">
+                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            promotion.isActive 
+                              ? isExpired(promotion.endDate) 
+                                ? 'bg-yellow-100 text-yellow-800' 
+                                : 'bg-green-100 text-green-800' 
+                              : 'bg-red-100 text-red-800'
+                          }`}>
+                            {promotion.isActive 
+                              ? isExpired(promotion.endDate) 
+                                ? 'Hết hạn' 
+                                : 'Hoạt động' 
+                              : 'Tạm ngưng'
+                            }
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+                    
+                    {/* Cột 4: Sử dụng */}
+                    <td className="px-4 py-4">
+                      <div>
+                        <div className="text-sm font-medium text-gray-900">{promotion.usageCount} lượt</div>
+                        {(promotion.usageLimit || 0) > 0 && (
+                          <div className="text-xs text-gray-500">
+                            Giới hạn: {promotion.usageLimit}/người
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    
+                    {/* Cột 5: Thao tác */}
+                    <td className="px-4 py-4">
+                      <div className="flex flex-col space-y-1">
+                        <button
+                          onClick={() => handleEditPromotion(promotion)}
+                          className="text-blue-600 hover:text-blue-900 text-xs font-medium text-left"
+                        >
+                          Sửa
+                        </button>
+                        <button
+                          onClick={() => handleToggleStatus(promotion.id)}
+                          className={`${
+                            promotion.isActive ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'
+                          } text-xs font-medium text-left`}
+                        >
+                          {promotion.isActive ? 'Tạm ngưng' : 'Kích hoạt'}
+                        </button>
+                        <button
+                          onClick={() => handleDeletePromotion(promotion.id)}
+                          className="text-red-600 hover:text-red-900 text-xs font-medium text-left"
+                        >
+                          Xóa
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Tablet View */}
+          <div className="hidden sm:block lg:hidden">
+            <div className="p-4 space-y-4">
+              {filteredPromotions.map((promotion) => (
+                <div key={promotion.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
+                  {/* Header */}
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <div className="text-lg font-bold text-blue-600">{promotion.code}</div>
                       <div className="text-sm font-medium text-gray-900">{promotion.name}</div>
-                      <div className="text-sm text-gray-500 truncate max-w-xs">{promotion.description}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {promotion.discountType === 'percentage' 
-                          ? `${promotion.discountValue}%` 
-                          : formatCurrency(promotion.discountValue)
-                        }
-                      </div>
-                      {promotion.minOrderValue > 0 && (
-                        <div className="text-xs text-gray-500">
-                          Đơn tối thiểu: {formatCurrency(promotion.minOrderValue)}
-                        </div>
-                      )}
-                      {promotion.maxDiscount && (
-                        <div className="text-xs text-gray-500">
-                          Giảm tối đa: {formatCurrency(promotion.maxDiscount)}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {new Date(promotion.startDate).toLocaleDateString('vi-VN')} - {new Date(promotion.endDate).toLocaleDateString('vi-VN')}
-                      </div>
-                      {isExpired(promotion.endDate) && (
-                        <div className="text-xs text-red-500">Đã hết hạn</div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    </div>
+                    <div className="flex flex-col items-end">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                         promotion.isActive 
                           ? isExpired(promotion.endDate) 
@@ -282,46 +409,177 @@ const Promotions: React.FC = () => {
                         {promotion.isActive 
                           ? isExpired(promotion.endDate) 
                             ? 'Hết hạn' 
-                            : 'Đang hoạt động' 
+                            : 'Hoạt động' 
                           : 'Tạm ngưng'
                         }
                       </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <div>{promotion.usageCount} lượt sử dụng</div>
-                      {promotion.usageLimit > 0 && (
-                        <div className="text-xs">
-                          Giới hạn: {promotion.usageLimit} lượt/người
+                    </div>
+                  </div>
+
+                  {/* Content */}
+                  <div className="grid grid-cols-2 gap-4 mb-3">
+                    <div>
+                      <div className="text-sm text-gray-500">Mô tả:</div>
+                      <div className="text-sm text-gray-900">{promotion.description}</div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-gray-500">Giảm giá:</div>
+                      <div className="text-sm font-medium text-gray-900">
+                        {promotion.discountType === 'percentage' 
+                          ? `${promotion.discountValue}%` 
+                          : formatCurrency(promotion.discountValue)
+                        }
+                      </div>
+                      {(promotion.minOrderValue || 0) > 0 && (
+                        <div className="text-xs text-gray-500">
+                          Tối thiểu: {formatCurrency(promotion.minOrderValue || 0)}
                         </div>
                       )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <button
-                        onClick={() => handleEditPromotion(promotion)}
-                        className="text-blue-600 hover:text-blue-900 mr-3"
-                      >
-                        Sửa
-                      </button>
-                      <button
-                        onClick={() => handleToggleStatus(promotion.id)}
-                        className={`${
-                          promotion.isActive ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'
-                        } mr-3`}
-                      >
-                        {promotion.isActive ? 'Tạm ngưng' : 'Kích hoạt'}
-                      </button>
-                      <button
-                        onClick={() => handleDeletePromotion(promotion.id)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        Xóa
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      {promotion.maxDiscount && (
+                        <div className="text-xs text-orange-600">
+                          Tối đa: {formatCurrency(promotion.maxDiscount)}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 mb-3">
+                    <div>
+                      <div className="text-sm text-gray-500">Thời gian:</div>
+                      <div className="text-sm text-gray-900">
+                        {new Date(promotion.startDate).toLocaleDateString('vi-VN')} - {new Date(promotion.endDate).toLocaleDateString('vi-VN')}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-gray-500">Sử dụng:</div>
+                      <div className="text-sm text-gray-900">
+                        {promotion.usageCount} lượt
+                        {(promotion.usageLimit || 0) > 0 && ` (Giới hạn: ${promotion.usageLimit}/người)`}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex space-x-3 pt-3 border-t border-gray-200">
+                    <button
+                      onClick={() => handleEditPromotion(promotion)}
+                      className="text-blue-600 hover:text-blue-900 text-sm font-medium"
+                    >
+                      Sửa
+                    </button>
+                    <button
+                      onClick={() => handleToggleStatus(promotion.id)}
+                      className={`${
+                        promotion.isActive ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'
+                      } text-sm font-medium`}
+                    >
+                      {promotion.isActive ? 'Tạm ngưng' : 'Kích hoạt'}
+                    </button>
+                    <button
+                      onClick={() => handleDeletePromotion(promotion.id)}
+                      className="text-red-600 hover:text-red-900 text-sm font-medium"
+                    >
+                      Xóa
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
+
+          {/* Mobile Card View */}
+          <div className="sm:hidden">
+            <div className="p-4 space-y-4">
+              {filteredPromotions.map((promotion) => (
+                <div key={promotion.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
+                  {/* Header */}
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <div className="text-lg font-bold text-blue-600">{promotion.code}</div>
+                      <div className="text-sm font-medium text-gray-900">{promotion.name}</div>
+                    </div>
+                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                      promotion.isActive 
+                        ? isExpired(promotion.endDate) 
+                          ? 'bg-yellow-100 text-yellow-800' 
+                          : 'bg-green-100 text-green-800' 
+                        : 'bg-red-100 text-red-800'
+                    }`}>
+                      {promotion.isActive 
+                        ? isExpired(promotion.endDate) 
+                          ? 'Hết hạn' 
+                          : 'Hoạt động' 
+                        : 'Tạm ngưng'
+                      }
+                    </span>
+                  </div>
+
+                  {/* Description */}
+                  <div className="mb-3">
+                    <div className="text-sm text-gray-600">{promotion.description}</div>
+                  </div>
+
+                  {/* Discount Info */}
+                  <div className="mb-3">
+                    <div className="text-lg font-semibold text-green-600">
+                      {promotion.discountType === 'percentage' 
+                        ? `Giảm ${promotion.discountValue}%` 
+                        : `Giảm ${formatCurrency(promotion.discountValue)}`
+                      }
+                    </div>
+                    {(promotion.minOrderValue || 0) > 0 && (
+                      <div className="text-sm text-gray-500">
+                        Đơn tối thiểu: {formatCurrency(promotion.minOrderValue || 0)}
+                      </div>
+                    )}
+                    {promotion.maxDiscount && (
+                      <div className="text-sm text-orange-600">
+                        Giảm tối đa: {formatCurrency(promotion.maxDiscount)}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Time and Usage */}
+                  <div className="mb-4">
+                    <div className="text-sm text-gray-500">
+                      Từ {new Date(promotion.startDate).toLocaleDateString('vi-VN')} đến {new Date(promotion.endDate).toLocaleDateString('vi-VN')}
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      Đã sử dụng: {promotion.usageCount} lượt
+                      {(promotion.usageLimit || 0) > 0 && ` (Giới hạn: ${promotion.usageLimit} lượt/người)`}
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      onClick={() => handleEditPromotion(promotion)}
+                      className="bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-2 rounded-md text-sm font-medium text-center"
+                    >
+                      Sửa
+                    </button>
+                    <button
+                      onClick={() => handleToggleStatus(promotion.id)}
+                      className={`${
+                        promotion.isActive 
+                          ? 'bg-red-50 text-red-600 hover:bg-red-100' 
+                          : 'bg-green-50 text-green-600 hover:bg-green-100'
+                      } px-3 py-2 rounded-md text-sm font-medium text-center`}
+                    >
+                      {promotion.isActive ? 'Tạm ngưng' : 'Kích hoạt'}
+                    </button>
+                    <button
+                      onClick={() => handleDeletePromotion(promotion.id)}
+                      className="bg-red-50 text-red-600 hover:bg-red-100 px-3 py-2 rounded-md text-sm font-medium text-center"
+                    >
+                      Xóa
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {filteredPromotions.length === 0 && (
             <div className="px-6 py-4 text-center text-gray-500">
               Không tìm thấy khuyến mãi nào phù hợp với tìm kiếm của bạn.
@@ -329,6 +587,7 @@ const Promotions: React.FC = () => {
           )}
         </div>
       </div>
+    </div>
 
       {/* Modal thêm/sửa khuyến mãi */}
       {isModalOpen && currentPromotion && (

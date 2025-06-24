@@ -1,9 +1,48 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
+import AdminService, { AdminStats, AdminBooking } from '../../services/admin.service';
+import { formatDate } from '../../utils/dateTime';
 
 const AdminDashboard: React.FC = () => {
-  // Dữ liệu mẫu cho biểu đồ
+  // State cho thống kê và dữ liệu
+  const [stats, setStats] = useState<AdminStats | null>(null);
+  const [recentBookings, setRecentBookings] = useState<AdminBooking[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Tải dữ liệu khi component mount
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  /**
+   * Tải dữ liệu dashboard
+   */
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Tải thống kê và booking gần đây song song
+      const [statsData, bookingsData] = await Promise.all([
+        AdminService.getStats(),
+        AdminService.getBookings()
+      ]);
+
+      setStats(statsData);
+      // Lấy 5 booking gần nhất
+      setRecentBookings(bookingsData.slice(0, 5));
+
+    } catch (error) {
+      console.error('Lỗi khi tải dữ liệu dashboard:', error);
+      setError('Không thể tải dữ liệu dashboard');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Dữ liệu mẫu cho biểu đồ booking trong tuần
   const bookingData = [
     { name: 'T2', bookings: 12 },
     { name: 'T3', bookings: 19 },
@@ -14,52 +53,140 @@ const AdminDashboard: React.FC = () => {
     { name: 'CN', bookings: 14 },
   ];
 
+  // Dữ liệu mẫu cho biểu đồ doanh thu theo tháng
   const revenueData = [
-    { name: 'Tháng 1', revenue: 4000 },
-    { name: 'Tháng 2', revenue: 3000 },
-    { name: 'Tháng 3', revenue: 5000 },
-    { name: 'Tháng 4', revenue: 4500 },
-    { name: 'Tháng 5', revenue: 6000 },
-    { name: 'Tháng 6', revenue: 5500 },
+    { name: 'Tháng 1', revenue: 40000000 },
+    { name: 'Tháng 2', revenue: 30000000 },
+    { name: 'Tháng 3', revenue: 50000000 },
+    { name: 'Tháng 4', revenue: 45000000 },
+    { name: 'Tháng 5', revenue: 60000000 },
+    { name: 'Tháng 6', revenue: 55000000 },
   ];
 
-  // Dữ liệu mẫu cho thống kê
-  const stats = [
-    { title: 'Tổng đơn đặt lịch', value: '124', change: '+12%', icon: '📅' },
-    { title: 'Doanh thu tháng', value: '45.5M VND', change: '+8%', icon: '💰' },
-    { title: 'Khách hàng mới', value: '38', change: '+15%', icon: '👥' },
-    { title: 'Đánh giá trung bình', value: '4.8/5', change: '+0.2', icon: '⭐' },
-  ];
+  // Format giá tiền
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND',
+    }).format(price);
+  };
 
-  // Dữ liệu mẫu cho đơn đặt lịch gần đây
-  const recentBookings = [
-    { id: 'B001', customer: 'Nguyễn Văn A', service: 'Vệ sinh nhà ở', date: '15/06/2023', status: 'Hoàn thành' },
-    { id: 'B002', customer: 'Trần Thị B', service: 'Giặt thảm, sofa', date: '14/06/2023', status: 'Đang xử lý' },
-    { id: 'B003', customer: 'Lê Văn C', service: 'Vệ sinh văn phòng', date: '13/06/2023', status: 'Chờ xác nhận' },
-    { id: 'B004', customer: 'Phạm Thị D', service: 'Vệ sinh sau xây dựng', date: '12/06/2023', status: 'Hoàn thành' },
-    { id: 'B005', customer: 'Hoàng Văn E', service: 'Vệ sinh kính', date: '11/06/2023', status: 'Đã hủy' },
-  ];
+  // Hiển thị trạng thái booking
+  const renderBookingStatus = (status: string) => {
+    const statusConfig = {
+      pending: { label: 'Chờ xác nhận', className: 'bg-yellow-100 text-yellow-800' },
+      confirmed: { label: 'Đã xác nhận', className: 'bg-blue-100 text-blue-800' },
+      in_progress: { label: 'Đang thực hiện', className: 'bg-purple-100 text-purple-800' },
+      completed: { label: 'Hoàn thành', className: 'bg-green-100 text-green-800' },
+      cancelled: { label: 'Đã hủy', className: 'bg-red-100 text-red-800' },
+      rescheduled: { label: 'Đã dời lịch', className: 'bg-orange-100 text-orange-800' },
+    };
+
+    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
+    
+    return (
+      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${config.className}`}>
+        {config.label}
+      </span>
+    );
+  };
+
+  // Hiển thị loading state
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Đang tải dữ liệu dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Hiển thị error state
+  if (error) {
+    return (
+      <div className="bg-white p-6 rounded-lg shadow-sm text-center">
+        <div className="text-red-600 mb-4">
+          <svg className="w-12 h-12 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+          </svg>
+        </div>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">Có lỗi xảy ra</h3>
+        <p className="text-gray-500 mb-4">{error}</p>
+        <button
+          onClick={loadDashboardData}
+          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+        >
+          Thử lại
+        </button>
+      </div>
+    );
+  }
+
+  if (!stats) return null;
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Tổng quan</h1>
+      <h1 className="text-2xl font-bold">Tổng quan Admin</h1>
       
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, index) => (
-          <div key={index} className="bg-white p-6 rounded-lg shadow-sm">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-gray-500 text-sm">{stat.title}</p>
-                <p className="text-2xl font-bold mt-1">{stat.value}</p>
-                <p className={`text-sm mt-2 ${stat.change.startsWith('+') ? 'text-green-600' : 'text-red-600'}`}>
-                  {stat.change} so với tháng trước
-                </p>
-              </div>
-              <div className="text-3xl">{stat.icon}</div>
+        {/* Tổng đơn đặt lịch */}
+        <div className="bg-white p-6 rounded-lg shadow-sm">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-gray-500 text-sm">Tổng đơn đặt lịch</p>
+              <p className="text-2xl font-bold mt-1">{stats.totalBookings}</p>
+              <p className="text-sm mt-2 text-green-600">
+                +{stats.bookingGrowth}% so với tháng trước
+              </p>
             </div>
+            <div className="text-3xl">📅</div>
           </div>
-        ))}
+        </div>
+
+        {/* Doanh thu tháng */}
+        <div className="bg-white p-6 rounded-lg shadow-sm">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-gray-500 text-sm">Doanh thu tháng</p>
+              <p className="text-2xl font-bold mt-1">{formatPrice(stats.monthlyRevenue)}</p>
+              <p className="text-sm mt-2 text-green-600">
+                +{stats.revenueGrowth}% so với tháng trước
+              </p>
+            </div>
+            <div className="text-3xl">💰</div>
+          </div>
+        </div>
+
+        {/* Khách hàng mới */}
+        <div className="bg-white p-6 rounded-lg shadow-sm">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-gray-500 text-sm">Người dùng mới tháng này</p>
+              <p className="text-2xl font-bold mt-1">{stats.newUsersThisMonth}</p>
+              <p className="text-sm mt-2 text-green-600">
+                +{stats.userGrowth}% so với tháng trước
+              </p>
+            </div>
+            <div className="text-3xl">👥</div>
+          </div>
+        </div>
+
+        {/* Đánh giá trung bình */}
+        <div className="bg-white p-6 rounded-lg shadow-sm">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-gray-500 text-sm">Đánh giá trung bình</p>
+              <p className="text-2xl font-bold mt-1">{stats.avgRating}/5</p>
+              <p className="text-sm mt-2 text-green-600">
+                Từ {stats.completedBookingsThisMonth} đơn hoàn thành
+              </p>
+            </div>
+            <div className="text-3xl">⭐</div>
+          </div>
+        </div>
       </div>
       
       {/* Charts */}
@@ -85,7 +212,7 @@ const AdminDashboard: React.FC = () => {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis />
-              <Tooltip />
+              <Tooltip formatter={(value) => formatPrice(value as number)} />
               <Legend />
               <Line type="monotone" dataKey="revenue" stroke="#3B82F6" activeDot={{ r: 8 }} />
             </LineChart>
@@ -116,10 +243,13 @@ const AdminDashboard: React.FC = () => {
                   Dịch vụ
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Ngày
+                  Ngày đặt lịch
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Trạng thái
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Tổng tiền
                 </th>
               </tr>
             </thead>
@@ -127,26 +257,28 @@ const AdminDashboard: React.FC = () => {
               {recentBookings.map((booking) => (
                 <tr key={booking.id}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {booking.id}
+                    {booking.bookingCode}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {booking.customer}
+                    <div>
+                      <div className="font-medium">{booking.userName}</div>
+                      <div className="text-gray-400">{booking.userEmail}</div>
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {booking.service}
+                    {booking.serviceName}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {booking.date}
+                    <div>
+                      <div>{formatDate(booking.bookingDate)}</div>
+                      <div className="text-gray-400">{booking.bookingTime}</div>
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      booking.status === 'Hoàn thành' ? 'bg-green-100 text-green-800' :
-                      booking.status === 'Đang xử lý' ? 'bg-blue-100 text-blue-800' :
-                      booking.status === 'Chờ xác nhận' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-red-100 text-red-800'
-                    }`}>
-                      {booking.status}
-                    </span>
+                    {renderBookingStatus(booking.status)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                    {formatPrice(booking.totalPrice)}
                   </td>
                 </tr>
               ))}

@@ -1,25 +1,48 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Kiểm tra message từ URL
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const urlMessage = params.get('message');
+    
+    if (urlMessage === 'session_expired') {
+      setMessage('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+    } else if (urlMessage === 'password_reset_success') {
+      setMessage('Đặt lại mật khẩu thành công! Vui lòng đăng nhập với mật khẩu mới.');
+    }
+  }, [location.search]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setMessage('');
     setIsLoading(true);
     
     try {
       const success = await login(email, password);
       if (success) {
-        navigate('/');
+        // Kiểm tra redirect URL từ query params
+        const params = new URLSearchParams(location.search);
+        const redirectTo = params.get('redirect');
+        
+        if (redirectTo) {
+          navigate(`/${redirectTo}`);
+        } else {
+          navigate('/');
+        }
       } else {
         setError('Email hoặc mật khẩu không đúng');
       }
@@ -35,6 +58,12 @@ const Login: React.FC = () => {
     <div className="max-w-md mx-auto">
       <div className="bg-white rounded-lg shadow-md p-8">
         <h1 className="text-2xl font-bold text-center mb-6">Đăng nhập</h1>
+        
+        {message && (
+          <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4">
+            {message}
+          </div>
+        )}
         
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">

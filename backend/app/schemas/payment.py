@@ -1,54 +1,67 @@
-from flask_marshmallow import Marshmallow
-from ..models.booking import Payment
-from ..utils.validators import (
-    validate_payment_method, validate_transaction_status,
-    validate_uuid_format, validate_positive_number
-)
-from marshmallow import fields, validates, ValidationError
+"""
+Payment schemas for serialization/deserialization
+Author: CleanHome Team
+"""
 
-ma = Marshmallow()
+from marshmallow import Schema, fields, validate
+from app.extensions import ma
 
-class PaymentSchema(ma.SQLAlchemyAutoSchema):
-    """Schema cho model Payment"""
-    class Meta:
-        model = Payment
-        load_instance = True
-        include_fk = True
-        fields = (
-            'id', 'booking_id', 'amount', 'payment_method', 'transaction_id',
-            'status', 'payment_date', 'created_at', 'updated_at'
-        )
-
-    id = fields.UUID(dump_only=True)
-    booking_id = fields.UUID(required=True)
-    amount = fields.Float(required=True)
-    payment_method = fields.String(required=True)
-    transaction_id = fields.String(allow_none=True)
-    status = fields.String(required=True)
+class PaymentSchema(ma.Schema):
+    """Schema cho Payment model"""
+    
+    id = fields.Str(dump_only=True)
+    booking_id = fields.Str(required=True)
+    
+    amount = fields.Decimal(as_string=True, required=True)
+    payment_method = fields.Str(required=True, validate=validate.OneOf([
+        'cash', 'bank_transfer', 'vnpay', 'momo', 'zalopay'
+    ]))
+    
+    transaction_id = fields.Str(allow_none=True)
+    vnpay_transaction_no = fields.Str(allow_none=True)
+    vnpay_response_code = fields.Str(allow_none=True)
+    vnpay_bank_code = fields.Str(allow_none=True)
+    
+    status = fields.Str(validate=validate.OneOf([
+        'pending', 'processing', 'completed', 'failed', 'refunded'
+    ]))
+    
     payment_date = fields.DateTime(allow_none=True)
+    gateway_response = fields.Str(allow_none=True)
+    notes = fields.Str(allow_none=True)
+    
     created_at = fields.DateTime(dump_only=True)
     updated_at = fields.DateTime(dump_only=True)
+    
+    class Meta:
+        ordered = True
 
-    @validates('booking_id')
-    def validate_booking_id(self, value):
-        is_valid, error = validate_uuid_format(value, 'booking_id')
-        if not is_valid:
-            raise ValidationError(error)
 
-    @validates('amount')
-    def validate_amount(self, value):
-        is_valid, error = validate_positive_number(value, 'amount', include_zero=True)
-        if not is_valid:
-            raise ValidationError(error)
+class PaymentCreateSchema(ma.Schema):
+    """Schema cho tạo payment mới"""
+    
+    booking_id = fields.Str(required=True)
+    payment_method = fields.Str(required=True, validate=validate.OneOf([
+        'cash', 'bank_transfer', 'vnpay', 'momo', 'zalopay'
+    ]))
+    bank_code = fields.Str(allow_none=True)  # Cho VNPay
+    notes = fields.Str(allow_none=True)
 
-    @validates('payment_method')
-    def validate_payment_method(self, value):
-        is_valid, error = validate_payment_method(value)
-        if not is_valid:
-            raise ValidationError(error)
 
-    @validates('status')
-    def validate_status(self, value):
-        is_valid, error = validate_transaction_status(value)
-        if not is_valid:
-            raise ValidationError(error)
+class VNPayCreateSchema(ma.Schema):
+    """Schema cho tạo thanh toán VNPay"""
+    
+    booking_id = fields.Str(required=True)
+    bank_code = fields.Str(allow_none=True, validate=validate.OneOf([
+        'NCB', 'AGRIBANK', 'SCB', 'SACOMBANK', 'EXIMBANK', 'MSBANK', 
+        'NAMABANK', 'VNMART', 'VIETINBANK', 'VIETCOMBANK', 'HDBANK',
+        'DONGABANK', 'TPBANK', 'OJB', 'BIDV', 'TECHCOMBANK', 'VPBANK',
+        'MBBANK', 'ACB', 'OCB', 'IVB', 'VISA', 'MASTERCARD', 'JCB'
+    ]))
+
+
+# Khởi tạo schemas
+payment_schema = PaymentSchema()
+payments_schema = PaymentSchema(many=True)
+payment_create_schema = PaymentCreateSchema()
+vnpay_create_schema = VNPayCreateSchema()

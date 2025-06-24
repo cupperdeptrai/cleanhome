@@ -24,38 +24,44 @@ backend/
 │   ├── extensions.py         # Các extension (SQLAlchemy, JWT, etc.)
 │   ├── models/               # Định nghĩa các model
 │   │   ├── __init__.py
-│   │   ├── user.py           # Model User
-│   │   ├── service.py        # Model Service và ServiceCategory
-│   │   ├── booking.py        # Model Booking, BookingItem, Payment, Review, StaffSchedule
-│   │   ├── promotion.py      # Model Promotion và BookingPromotion
-│   │   ├── notification.py   # Model Notification
+│   │   ├── user.py           # Model User, UserAddress
+│   │   ├── service.py        # Model Service, ServiceCategory, Area, ServiceArea
+│   │   ├── booking.py        # Model Booking, BookingItem, Review, StaffSchedule
+│   │   ├── promotion.py      # Model Promotion, BookingPromotion
+│   │   ├── payment.py        # Model Payment, PaymentMethod, TransactionLog
+│   │   ├── notification.py   # Model Notification, NotificationSetting
+│   │   ├── activity.py       # Model UserActivityLog
 │   │   └── setting.py        # Model Setting
 │   ├── api/                  # API endpoints
 │   │   ├── __init__.py
 │   │   ├── auth.py           # Xác thực người dùng
-│   │   ├── users.py          # API quản lý người dùng
-│   │   ├── services.py       # API quản lý dịch vụ
+│   │   ├── users.py          # API quản lý người dùng và địa chỉ
+│   │   ├── services.py       # API quản lý dịch vụ và danh mục
+│   │   ├── areas.py          # API quản lý khu vực phục vụ
 │   │   ├── bookings.py       # API quản lý đặt lịch
 │   │   ├── promotions.py     # API quản lý khuyến mãi
 │   │   ├── reports.py        # API cho báo cáo và thống kê
 │   │   ├── reviews.py        # API quản lý đánh giá
 │   │   ├── staff.py          # API quản lý nhân viên và lịch làm việc
 │   │   ├── payments.py       # API quản lý thanh toán
-│   │   └── notifications.py  # API quản lý thông báo
+│   │   ├── notifications.py  # API quản lý thông báo
+│   │   └── activity.py       # API quản lý nhật ký hoạt động
 │   ├── schemas/              # Schemas cho serialization/validation
 │   │   ├── __init__.py
-│   │   ├── user.py
-│   │   ├── service.py
-│   │   ├── booking.py
-│   │   ├── promotion.py
-│   │   ├── database.sql      # SQL schema cho PostgreSQL
-│   │   └── payment.py
+│   │   ├── user.py           # User, UserAddress schemas
+│   │   ├── service.py        # Service, ServiceCategory, Area schemas
+│   │   ├── booking.py        # Booking, BookingItem, Review schemas
+│   │   ├── promotion.py      # Promotion schemas
+│   │   ├── payment.py        # Payment, PaymentMethod schemas
+│   │   ├── notification.py   # Notification schemas
+│   │   └── activity.py       # Activity log schemas
 │   └── utils/                # Các hàm tiện ích
 │       ├── __init__.py
 │       ├── helpers.py        # Hàm tiện ích (UUID, ngày, tiền tệ, v.v.)
 │       ├── validators.py     # Hàm kiểm tra dữ liệu (ENUM, định dạng, v.v.)
 │       ├── config.py         # Cấu hình hệ thống và PostgreSQL
 │       ├── email.py          # Tiện ích gửi email
+│       ├── notifications.py  # Tiện ích gửi thông báo (email, SMS, push)
 │       └── errors.py         # Xử lý lỗi chuẩn hóa
 ├── migrations/               # Migrations cho cơ sở dữ liệu
 │   ├── versions/             # Các phiên bản migration
@@ -80,118 +86,9 @@ backend/
 │   └── app.log
 ├── .env                      # Biến môi trường
 ├── .env.example              # Mẫu file .env
-├── .gitignore
 ├── requirements.txt          # Dependencies
-├── Dockerfile                # Cấu hình Docker
-├── docker-compose.yml        # Cấu hình Docker Compose
 ├── run.py                    # Entry point để chạy ứng dụng
 └── README.md                 # Hướng dẫn
-
-## Mô hình dữ liệu
-
-### User (Người dùng)
-- id: Integer, primary key
-- name: String, tên người dùng
-- email: String, email (unique)
-- password: String, mật khẩu (đã hash)
-- phone: String, số điện thoại
-- address: String, địa chỉ
-- avatar: String, đường dẫn ảnh đại diện
-- role: Enum('customer', 'staff', 'admin'), vai trò
-- status: Enum('active', 'locked'), trạng thái
-- created_at: DateTime, thời gian tạo
-- updated_at: DateTime, thời gian cập nhật
-
-### Service (Dịch vụ)
-- id: Integer, primary key
-- category_id: Integer, foreign key đến ServiceCategory
-- name: String, tên dịch vụ
-- description: Text, mô tả
-- price: Decimal, giá
-- duration: Integer, thời gian thực hiện (phút)
-- image: String, đường dẫn hình ảnh
-- status: Enum('active', 'inactive'), trạng thái
-- created_at: DateTime, thời gian tạo
-- updated_at: DateTime, thời gian cập nhật
-
-### Booking (Đặt lịch)
-- id: Integer, primary key
-- user_id: Integer, foreign key đến User
-- service_id: Integer, foreign key đến Service
-- staff_id: Integer, foreign key đến User (staff)
-- booking_date: Date, ngày đặt lịch
-- booking_time: Time, giờ đặt lịch
-- status: Enum('pending', 'confirmed', 'in_progress', 'completed', 'cancelled'), trạng thái
-- total_price: Decimal, tổng giá
-- payment_status: Enum('unpaid', 'paid'), trạng thái thanh toán
-- payment_method: Enum('cash', 'bank_transfer', 'credit_card', 'momo', 'zalopay'), phương thức thanh toán
-- notes: Text, ghi chú
-- address: Text, địa chỉ
-- created_at: DateTime, thời gian tạo
-- updated_at: DateTime, thời gian cập nhật
-
-### Promotion (Khuyến mãi)
-- id: Integer, primary key
-- code: String, mã khuyến mãi (unique)
-- name: String, tên khuyến mãi
-- description: Text, mô tả
-- discount_type: Enum('percentage', 'fixed'), loại giảm giá
-- discount_value: Decimal, giá trị giảm giá
-- min_order_value: Decimal, giá trị đơn hàng tối thiểu
-- max_discount: Decimal, giảm giá tối đa
-- start_date: Date, ngày bắt đầu
-- end_date: Date, ngày kết thúc
-- usage_limit: Integer, giới hạn sử dụng
-- used_count: Integer, số lần đã sử dụng
-- status: Enum('active', 'inactive'), trạng thái
-- created_at: DateTime, thời gian tạo
-- updated_at: DateTime, thời gian cập nhật
-
-## API Endpoints
-
-### Authentication
-- `POST /api/auth/register`: Đăng ký tài khoản mới
-- `POST /api/auth/login`: Đăng nhập
-- `POST /api/auth/logout`: Đăng xuất
-- `GET /api/auth/me`: Lấy thông tin người dùng hiện tại
-- `PUT /api/auth/me`: Cập nhật thông tin người dùng
-- `POST /api/auth/change-password`: Đổi mật khẩu
-
-### Users
-- `GET /api/users`: Lấy danh sách người dùng (admin only)
-- `GET /api/users/<id>`: Lấy thông tin người dùng theo ID
-- `POST /api/users`: Tạo người dùng mới (admin only)
-- `PUT /api/users/<id>`: Cập nhật thông tin người dùng
-- `DELETE /api/users/<id>`: Xóa người dùng
-
-### Services
-- `GET /api/services`: Lấy danh sách dịch vụ
-- `GET /api/services/<id>`: Lấy thông tin dịch vụ theo ID
-- `POST /api/services`: Tạo dịch vụ mới (admin only)
-- `PUT /api/services/<id>`: Cập nhật thông tin dịch vụ (admin only)
-- `DELETE /api/services/<id>`: Xóa dịch vụ (admin only)
-
-### Bookings
-- `GET /api/bookings`: Lấy danh sách đặt lịch
-- `GET /api/bookings/<id>`: Lấy thông tin đặt lịch theo ID
-- `POST /api/bookings`: Tạo đặt lịch mới
-- `PUT /api/bookings/<id>`: Cập nhật thông tin đặt lịch
-- `DELETE /api/bookings/<id>`: Hủy đặt lịch
-- `PUT /api/bookings/<id>/status`: Cập nhật trạng thái đặt lịch
-
-### Promotions
-- `GET /api/promotions`: Lấy danh sách khuyến mãi
-- `GET /api/promotions/<id>`: Lấy thông tin khuyến mãi theo ID
-- `POST /api/promotions`: Tạo khuyến mãi mới (admin only)
-- `PUT /api/promotions/<id>`: Cập nhật thông tin khuyến mãi (admin only)
-- `DELETE /api/promotions/<id>`: Xóa khuyến mãi (admin only)
-- `POST /api/promotions/validate`: Kiểm tra mã khuyến mãi
-
-### Reports (Admin only)
-- `GET /api/reports/revenue`: Báo cáo doanh thu
-- `GET /api/reports/bookings`: Báo cáo đặt lịch
-- `GET /api/reports/services`: Báo cáo dịch vụ
-- `GET /api/reports/users`: Báo cáo người dùng
 
 ## Authentication & Authorization
 
@@ -241,38 +138,37 @@ backend/
 ### Các bước cài đặt
 
 1. Clone repository:
-```bash
+```powershell
 git clone https://github.com/your-username/cleanhome-backend.git
 cd cleanhome-backend
 ```
 
 2. Tạo và kích hoạt môi trường ảo:
-```bash
+```powershell
 python -m venv venv
-source venv/bin/activate  # Linux/Mac
-venv\Scripts\activate     # Windows
+venv\Scripts\Activate.ps1     # Windows PowerShell
 ```
 
 3. Cài đặt dependencies:
-```bash
+```powershell
 pip install -r requirements.txt
 ```
 
 4. Tạo file .env từ .env.example và cấu hình:
-```bash
-cp .env.example .env
+```powershell
+Copy-Item .env.example .env
 # Chỉnh sửa file .env với thông tin cấu hình của bạn
 ```
 
 5. Khởi tạo cơ sở dữ liệu:
-```bash
+```powershell
 flask db init
 flask db migrate -m "Initial migration"
 flask db upgrade
 ```
 
 6. Chạy ứng dụng:
-```bash
+```powershell
 flask run
 # hoặc
 python run.py
@@ -304,7 +200,7 @@ python run.py
 - Sử dụng test client của Flask
 
 ### Chạy tests:
-```bash
+```powershell
 pytest
 # hoặc
 python -m pytest

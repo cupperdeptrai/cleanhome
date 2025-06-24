@@ -3,7 +3,7 @@ import React, { ButtonHTMLAttributes } from 'react';
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'outline' | 'danger' | 'success';
   size?: 'sm' | 'md' | 'lg';
-  fullWidth?: boolean;
+  fullwidth?: boolean;
   className?: string;
 }
 
@@ -11,7 +11,7 @@ const Button: React.FC<ButtonProps> = ({
   children,
   variant = 'primary',
   size = 'md',
-  fullWidth = false,
+  fullwidth = false,
   className = '',
   ...props
 }) => {
@@ -34,7 +34,7 @@ const Button: React.FC<ButtonProps> = ({
   };
   
   // Width classes
-  const widthClasses = fullWidth ? 'w-full' : '';
+  const widthClasses = fullwidth ? 'w-full' : '';
   
   // Disabled classes
   const disabledClasses = props.disabled ? 'opacity-50 cursor-not-allowed' : '';

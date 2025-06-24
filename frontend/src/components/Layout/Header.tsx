@@ -33,11 +33,22 @@ const Header: React.FC = () => {
                 <div className="relative group">
                   <button className="flex items-center m-3 space-x-2 focus:outline-none">
                     <span className="hidden md:inline">{user?.name}</span>
-                    <img 
-                      src={user?.avatar || 'https://via.placeholder.com/40'} 
-                      alt="Avatar" 
-                      className="w-8 h-8 rounded-full"
-                    />
+                    {user?.avatar ? (
+                      <img 
+                        src={user.avatar} 
+                        alt="Avatar" 
+                        className="w-8 h-8 rounded-full"
+                        onError={(e) => {
+                          // Nếu load ảnh thất bại, hiển thị icon mặc định
+                          e.currentTarget.style.display = 'none';
+                          const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                          if (fallback) fallback.style.display = 'flex';
+                        }}
+                      />
+                    ) : null}
+                    <div className={`w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-sm font-medium ${user?.avatar ? 'hidden' : 'flex'}`}>
+                      {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                    </div>
                   </button>
                   <div className="absolute right-0 top-11 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10 hidden group-hover:block">
                     <Link to="/profile" className="block px-4 py-2 text-gray-800 hover:bg-gray-100">Hồ sơ</Link>
