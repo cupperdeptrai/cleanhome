@@ -118,9 +118,13 @@ export class ApiService {
    */  
   public static async post<T, D = unknown>(url: string, data?: D, config?: AxiosRequestConfig): Promise<T> {
     try {
+      console.log('📤 POST Request:', { url, data, config });
+      console.log('🔗 Full URL:', `${API_URL}${url}`);
       const response = await apiClient.post(url, data, config);
+      console.log('📥 POST Response:', response.data);
       return response.data;
     } catch (error: unknown) {
+      console.error('❌ POST Error:', error);
       this.handleError(error);
       throw error;
     }

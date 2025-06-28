@@ -11,7 +11,7 @@ from sqlalchemy import func, text
 from datetime import datetime, timedelta
 from app.extensions import db
 from app.models.booking import Booking
-from app.models.payment import Payment
+# from app.models.payment import Payment
 from app.models.service import Service
 from app.models.user import User
 from app.utils.helpers import admin_required
@@ -32,9 +32,9 @@ def get_reports():
         total_bookings = Booking.query.count()
         
         # Thống kê doanh thu (từ bảng payments với status = 'completed')
-        total_revenue = db.session.query(func.sum(Payment.amount)).filter(
-            Payment.status == 'completed'
-        ).scalar() or 0
+        # total_revenue = db.session.query(func.sum(Payment.amount)).filter(
+        #     Payment.status == 'completed'
+        # ).scalar() or 0
         
         # Thống kê người dùng
         total_customers = User.query.filter_by(role='customer').count()
@@ -51,7 +51,7 @@ def get_reports():
                     'description': 'Tổng số lượt đặt lịch'
                 },
                 'revenue': {
-                    'total': float(total_revenue),
+                    'total': 0,  # Revenue calculation disabled (Payment model missing)
                     'description': 'Tổng doanh thu (VNĐ)'
                 },
                 'users': {

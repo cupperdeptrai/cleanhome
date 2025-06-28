@@ -40,10 +40,10 @@ class Booking(db.Model):
     cancelled_at = db.Column(db.DateTime, nullable=True)
     completed_at = db.Column(db.DateTime, nullable=True)    # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-      # Relationships
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)    # Relationships
     booking_items = db.relationship('BookingItem', backref='booking', lazy=True)
     assigned_staff = db.relationship('BookingStaff', backref='booking', lazy=True, cascade='all, delete-orphan')
+    # payments = db.relationship('Payment', back_populates='booking', lazy=True)  # Relationship với Payment
     
     @staticmethod
     def generate_booking_code():

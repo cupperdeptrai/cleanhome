@@ -65,16 +65,27 @@ export class AuthService {
    * @returns Promise<AuthResponse> Thông tin người dùng và token
    */  public static async login(data: LoginData): Promise<AuthResponse> {
     try {
+      console.log('🔐 Đăng nhập với dữ liệu:', data);
+      console.log('🌐 URL API:', `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/auth/login`);
+      
       const response = await ApiService.post<AuthResponse>('/auth/login', data);
+      console.log('✅ Phản hồi từ server:', response);
+      
       // Backend trả về access_token, không phải token
       const token = response.access_token || response.token;
       if (token && response.user) {
         localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(response.user));
+        console.log('💾 Đã lưu token và thông tin người dùng');
       }
       return response;
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('❌ Lỗi đăng nhập:', error);
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { data?: unknown; status?: number } };
+        console.error('📡 Chi tiết phản hồi lỗi:', axiosError.response?.data);
+        console.error('📊 Mã trạng thái:', axiosError.response?.status);
+      }
       throw error;
     }
   }

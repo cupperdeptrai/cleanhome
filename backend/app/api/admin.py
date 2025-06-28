@@ -6,7 +6,7 @@ from sqlalchemy import func, desc, and_, or_
 from datetime import datetime, timedelta
 from app.extensions import db
 from app.models.user import User
-from app.models.booking import Booking
+from app.models.booking import Booking, BookingStaff, BookingItem
 from app.models.service import Service
 from app.utils.errors import ValidationAPIError, AuthenticationError, handle_error
 from app.utils.helpers import admin_required
@@ -238,22 +238,93 @@ def get_admin_users():
 @jwt_required()
 @admin_required
 def get_admin_staff():
-    """Lấy danh sách staff cho admin"""
+    """
+    Lấy danh sách staff cho admin - Phiên bản cập nhật đồng bộ thống kê
+    
+    CHỨC NĂNG CHÍNH:
+    - Lấy tất cả nhân viên (role='staff') từ bảng users
+    - Tính toán thống kê đơn hàng chính xác từ cả 2 nguồn dữ liệu:
+      + Phân công trực tiếp: Booking.staff_id 
+      + Phân công nhiều người: BookingStaff table (many-to-many)
+    - Lấy danh sách dịch vụ đã được phân công cho từng nhân viên
+    - ĐÃ XÓA: Phần đánh giá nhân viên (rating) không còn được sử dụng
+    
+    THỐNG KÊ BẢO ĐẢM ĐỒNG BỘ:
+    - totalBookings: Tổng số đơn hàng được phân công (tránh trùng lặp)
+    - completedBookings: Số đơn hàng đã hoàn thành  
+    - assignedServices: Danh sách dịch vụ đã được phân công
+    """
     try:
         # Lấy danh sách staff từ bảng users với role='staff'
         staff_users = User.query.filter_by(role='staff').order_by(desc(User.created_at)).all()
         
         result = []
         for user in staff_users:
-            # Tính toán thống kê
-            total_bookings = Booking.query.filter_by(staff_id=user.id).count()
-            completed_bookings = Booking.query.filter(
+            # ===== TÍNH TOÁN THỐNG KÊ ĐỒNG BỘ TỪ CẢ 2 NGUỒN =====
+            # Tính toán thống kê đồng bộ từ cả 2 nguồn: Booking.staff_id và BookingStaff
+            # Phương pháp 1: Đơn hàng được phân công trực tiếp (staff_id trong bảng bookings)
+            direct_total_bookings = Booking.query.filter_by(staff_id=user.id).count()
+            direct_completed_bookings = Booking.query.filter(
                 and_(
                     Booking.staff_id == user.id,
                     Booking.status == 'completed'
                 )
             ).count()
             
+            # Phương pháp 2: Đơn hàng được phân công qua bảng booking_staff (many-to-many)
+            staff_assignments = BookingStaff.query.filter_by(staff_id=user.id).all()
+            booking_ids_from_assignments = [assignment.booking_id for assignment in staff_assignments]
+            
+            # Đếm booking từ bảng booking_staff
+            assignment_total_bookings = len(booking_ids_from_assignments)
+            assignment_completed_bookings = 0
+            if booking_ids_from_assignments:
+                assignment_completed_bookings = Booking.query.filter(
+                    and_(
+                        Booking.id.in_(booking_ids_from_assignments),
+                        Booking.status == 'completed'
+                    )
+                ).count()
+            
+            # ===== TỔNG HỢP THỐNG KÊ TRÁNH TRÙNG LẶP =====
+            # Tổng hợp thống kê từ cả 2 nguồn (tránh trùng lặp)
+            all_booking_ids = set()
+            
+            # Thêm booking IDs từ phân công trực tiếp
+            direct_bookings = Booking.query.filter_by(staff_id=user.id).all()
+            for booking in direct_bookings:
+                all_booking_ids.add(booking.id)
+            
+            # Thêm booking IDs từ bảng booking_staff
+            for booking_id in booking_ids_from_assignments:
+                all_booking_ids.add(booking_id)
+            
+            # Tính tổng số đơn hàng (không trùng lặp)
+            total_bookings = len(all_booking_ids)
+            
+            # Tính số đơn hoàn thành (không trùng lặp)
+            completed_bookings = 0
+            if all_booking_ids:
+                completed_bookings = Booking.query.filter(
+                    and_(
+                        Booking.id.in_(list(all_booking_ids)),
+                        Booking.status == 'completed'
+                    )
+                ).count()
+            
+            # ===== LẤY DANH SÁCH DỊCH VỤ ĐƯỢC PHÂN CÔNG =====
+            # Lấy danh sách dịch vụ đã được phân công (từ cả 2 nguồn thông qua BookingItem)
+            assigned_services_query = db.session.query(Service.name).join(
+                BookingItem, BookingItem.service_id == Service.id
+            ).join(
+                Booking, Booking.id == BookingItem.booking_id
+            ).filter(
+                Booking.id.in_(list(all_booking_ids))
+            ).distinct().all()
+            
+            assigned_services = [service[0] for service in assigned_services_query] if assigned_services_query else []
+
+            # ===== TẠO KẾT QUẢ TRẢ VỀ =====
             result.append({
                 'id': str(user.id),
                 'name': user.name,
@@ -262,9 +333,10 @@ def get_admin_staff():
                 'status': user.status,
                 'avatar': user.avatar,
                 'hireDate': user.created_at.date().isoformat() if user.created_at else None,
-                'rating': 4.5,  # Placeholder - cần tính từ reviews
-                'totalBookings': total_bookings,
-                'completedBookings': completed_bookings,
+                # ĐÃ XÓA: 'rating' - Không còn đánh giá nhân viên
+                'totalBookings': total_bookings,           # Tổng số đơn được phân công (đồng bộ)
+                'completedBookings': completed_bookings,   # Số đơn đã hoàn thành (đồng bộ)
+                'assignedServices': assigned_services,     # Danh sách dịch vụ được phân công (đồng bộ)
                 'createdAt': user.created_at.isoformat() if user.created_at else None,
                 'updatedAt': user.updated_at.isoformat() if user.updated_at else None
             })

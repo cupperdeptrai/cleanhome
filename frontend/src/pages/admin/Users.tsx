@@ -109,39 +109,39 @@ const AdminUsers: React.FC = () => {
   };
 
   /**
-   * Hiển thị role
+   * Hiển thị role với style đẹp hơn
    */
   const renderRole = (role: string) => {
     const roleConfig = {
-      customer: { label: 'Khách hàng', className: 'bg-blue-100 text-blue-800' },
-      staff: { label: 'Nhân viên', className: 'bg-green-100 text-green-800' },
-      admin: { label: 'Quản trị viên', className: 'bg-purple-100 text-purple-800' },
+      customer: { label: 'Khách hàng', className: 'bg-blue-50 text-blue-700 border-blue-200' },
+      staff: { label: 'Nhân viên', className: 'bg-green-50 text-green-700 border-green-200' },
+      admin: { label: 'Quản trị viên', className: 'bg-purple-50 text-purple-700 border-purple-200' },
     };
 
     const config = roleConfig[role as keyof typeof roleConfig] || roleConfig.customer;
     
     return (
-      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${config.className}`}>
+      <span className={`px-2 py-1 inline-flex text-xs leading-4 font-medium rounded border ${config.className}`}>
         {config.label}
       </span>
     );
   };
 
   /**
-   * Hiển thị trạng thái
+   * Hiển thị trạng thái với style đẹp hơn
    */
   const renderStatus = (status: string) => {
     const statusConfig = {
-      active: { label: 'Hoạt động', className: 'bg-green-100 text-green-800' },
-      inactive: { label: 'Không hoạt động', className: 'bg-gray-100 text-gray-800' },
-      locked: { label: 'Bị khóa', className: 'bg-red-100 text-red-800' },
-      pending: { label: 'Chờ kích hoạt', className: 'bg-yellow-100 text-yellow-800' },
+      active: { label: 'Hoạt động', className: 'bg-green-50 text-green-700 border-green-200' },
+      inactive: { label: 'Không hoạt động', className: 'bg-gray-50 text-gray-700 border-gray-200' },
+      locked: { label: 'Bị khóa', className: 'bg-red-50 text-red-700 border-red-200' },
+      pending: { label: 'Chờ kích hoạt', className: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
     };
 
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
     
     return (
-      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${config.className}`}>
+      <span className={`px-2 py-1 inline-flex text-xs leading-4 font-medium rounded border ${config.className}`}>
         {config.label}
       </span>
     );
@@ -212,10 +212,10 @@ const AdminUsers: React.FC = () => {
         </div>
       </div>
 
-      {/* Filters */}
+      {/* Bộ lọc và tìm kiếm người dùng */}
       <div className="bg-white p-4 rounded-lg shadow-sm">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {/* Search */}
+          {/* Ô tìm kiếm theo tên, email, số điện thoại */}
           <div className="relative">
             <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <input
@@ -227,7 +227,7 @@ const AdminUsers: React.FC = () => {
             />
           </div>
 
-          {/* Role Filter */}
+          {/* Bộ lọc theo vai trò */}
           <div className="relative">
             <FunnelIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <select
@@ -243,7 +243,7 @@ const AdminUsers: React.FC = () => {
             </select>
           </div>
 
-          {/* Status Filter */}
+          {/* Bộ lọc theo trạng thái */}
           <div className="relative">
             <UserPlusIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <select
@@ -260,7 +260,7 @@ const AdminUsers: React.FC = () => {
             </select>
           </div>
 
-          {/* Refresh Button */}
+          {/* Nút làm mới dữ liệu */}
           <button
             onClick={loadUsers}
             className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 flex items-center justify-center"
@@ -270,12 +270,16 @@ const AdminUsers: React.FC = () => {
         </div>
       </div>
 
-      {/* Users Table */}
+      {/* Bảng danh sách người dùng - thiết kế compact và dễ thao tác */}
       <div className="bg-white shadow-sm rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">            <thead className="bg-gray-50">              <tr>
+          <table className="min-w-full divide-y divide-gray-200 table-fixed">
+            {/* Header bảng người dùng với cột đã được điều chỉnh cho gọn gàng hơn */}
+            <thead className="bg-gray-50">
+              <tr>
+                {/* Cột thông tin người dùng - căn trái tiêu đề theo yêu cầu */}
                 <th 
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-80"
                   onClick={() => handleSort('name')}
                 >
                   <div className="flex items-center">
@@ -287,8 +291,9 @@ const AdminUsers: React.FC = () => {
                     )}
                   </div>
                 </th>
+                {/* Cột vai trò - căn trái tiêu đề theo yêu cầu */}
                 <th 
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-28"
                   onClick={() => handleSort('role')}
                 >
                   <div className="flex items-center">
@@ -300,8 +305,9 @@ const AdminUsers: React.FC = () => {
                     )}
                   </div>
                 </th>
+                {/* Cột trạng thái - căn trái tiêu đề theo yêu cầu */}
                 <th 
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-24"
                   onClick={() => handleSort('status')}
                 >
                   <div className="flex items-center">
@@ -313,15 +319,17 @@ const AdminUsers: React.FC = () => {
                     )}
                   </div>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                {/* Cột xác thực - căn trái tiêu đề theo yêu cầu */}
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
                   Xác thực
                 </th>
+                {/* Cột tham gia - căn trái tiêu đề theo yêu cầu */}
                 <th 
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-24"
                   onClick={() => handleSort('joinedAt')}
                 >
                   <div className="flex items-center">
-                    Ngày tham gia
+                    Tham gia
                     {sortField === 'joinedAt' && (
                       <span className="ml-1">
                         {sortDirection === 'asc' ? '↑' : '↓'}
@@ -329,12 +337,13 @@ const AdminUsers: React.FC = () => {
                     )}
                   </div>
                 </th>
+                {/* Cột đăng nhập - căn trái tiêu đề theo yêu cầu */}
                 <th 
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-24 whitespace-nowrap"
                   onClick={() => handleSort('lastLoginAt')}
                 >
                   <div className="flex items-center">
-                    Lần đăng nhập cuối
+                    Đăng nhập
                     {sortField === 'lastLoginAt' && (
                       <span className="ml-1">
                         {sortDirection === 'asc' ? '↑' : '↓'}
@@ -342,8 +351,9 @@ const AdminUsers: React.FC = () => {
                     )}
                   </div>
                 </th>
+                {/* Cột hoạt động - căn trái tiêu đề theo yêu cầu */}
                 <th 
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-20 whitespace-nowrap"
                   onClick={() => handleSort('totalBookings')}
                 >
                   <div className="flex items-center">
@@ -355,133 +365,122 @@ const AdminUsers: React.FC = () => {
                     )}
                   </div>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Hành động
+                {/* Cột thao tác - căn trái tiêu đề theo yêu cầu */}
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-28 whitespace-nowrap">
+                  Thao tác
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredUsers.map((user) => (
                 <tr key={user.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {/* Cột thông tin người dùng - hiển thị compact với avatar và thông tin cơ bản với chiều rộng cố định */}
+                  <td className="px-3 py-3 text-sm text-gray-500 w-80">
                     <div className="flex items-center">
-                      <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
+                      {/* Avatar người dùng */}
+                      <div className="h-8 w-8 rounded-full bg-gray-300 flex items-center justify-center flex-shrink-0">
                         {user.avatar ? (
-                          <img className="h-10 w-10 rounded-full" src={user.avatar} alt="" />
+                          <img className="h-8 w-8 rounded-full" src={user.avatar} alt="" />
                         ) : (
-                          <span className="text-sm font-medium text-gray-700">
+                          <span className="text-xs font-medium text-gray-700">
                             {user.name.charAt(0).toUpperCase()}
                           </span>
                         )}
-                      </div>                      <div className="ml-4">
+                      </div>
+                      {/* Thông tin cơ bản */}
+                      <div className="ml-3">
                         <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                        <div className="text-sm text-gray-500">{user.email}</div>
-                        {user.phone && <div className="text-sm text-gray-500">{user.phone}</div>}
-                        {user.emailVerifiedAt && (
-                          <div className="text-xs text-green-600">✓ Email đã xác thực</div>
-                        )}
-                        {user.phoneVerifiedAt && (
-                          <div className="text-xs text-green-600">✓ SĐT đã xác thực</div>
-                        )}
+                        <div className="text-xs text-gray-500">{user.email}</div>
+                        {user.phone && <div className="text-xs text-gray-500">{user.phone}</div>}
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  
+                  {/* Cột vai trò - hiển thị badge compact với chiều rộng tăng */}
+                  <td className="px-2 py-3 w-28">
                     {renderRole(user.role)}
-                  </td>                  <td className="px-6 py-4 whitespace-nowrap">
+                  </td>
+                  
+                  {/* Cột trạng thái - hiển thị badge compact */}
+                  <td className="px-2 py-3 w-24">
                     {renderStatus(user.status)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  
+                  {/* Cột xác thực - thông tin email và SĐT compact */}
+                  <td className="px-2 py-3 text-xs text-gray-500 w-20">
                     <div className="space-y-1">
                       {user.emailVerifiedAt ? (
-                        <div className="flex items-center text-green-600">
-                          <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                          <span className="text-xs">Email</span>
-                        </div>
+                        <div className="text-green-600">✓ Email</div>
                       ) : (
-                        <div className="flex items-center text-gray-400">
-                          <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                          </svg>
-                          <span className="text-xs">Email</span>
-                        </div>
+                        <div className="text-gray-400">✗ Email</div>
                       )}
                       {user.phone ? (
                         user.phoneVerifiedAt ? (
-                          <div className="flex items-center text-green-600">
-                            <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                            </svg>
-                            <span className="text-xs">SĐT</span>
-                          </div>
+                          <div className="text-green-600">✓ SĐT</div>
                         ) : (
-                          <div className="flex items-center text-yellow-600">
-                            <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                            </svg>
-                            <span className="text-xs">SĐT</span>
-                          </div>
+                          <div className="text-yellow-600">⚠ SĐT</div>
                         )
                       ) : (
-                        <div className="flex items-center text-gray-400">
-                          <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                          </svg>
-                          <span className="text-xs">SĐT</span>
-                        </div>
+                        <div className="text-gray-400">✗ SĐT</div>
                       )}
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {formatDateTime(user.joinedAt)}
+                  
+                  {/* Cột ngày tham gia - chỉ hiển thị ngày compact */}
+                  <td className="px-2 py-3 text-xs text-gray-500 w-24">
+                    {formatDateTime(user.joinedAt).split(' ')[0]}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {user.lastLoginAt ? formatDateTime(user.lastLoginAt) : 'Chưa từng đăng nhập'}
-                  </td>                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  
+                  {/* Cột lần đăng nhập cuối - chỉ hiển thị ngày compact */}
+                  <td className="px-2 py-3 text-xs text-gray-500 w-24">
+                    {user.lastLoginAt ? formatDateTime(user.lastLoginAt).split(' ')[0] : 'Chưa đăng nhập'}
+                  </td>
+                  
+                  {/* Cột hoạt động - thống kê đơn hàng và chi tiêu compact */}
+                  <td className="px-2 py-3 text-xs text-gray-500 w-20">
                     <div>
-                      <div>{user.totalBookings} đơn đặt lịch</div>
-                      <div className="text-green-600 font-medium">{formatPrice(user.totalSpent)}</div>
-                      <div className="text-xs text-gray-500">{user.loginCount} lần đăng nhập</div>
-                      {user.failedLoginAttempts > 0 && (
-                        <div className="text-xs text-red-500">{user.failedLoginAttempts} lần thất bại</div>
-                      )}
-                      {user.lockedUntil && new Date(user.lockedUntil) > new Date() && (
-                        <div className="text-xs text-red-600">Khóa đến {formatDateTime(user.lockedUntil)}</div>
-                      )}
+                      <div className="font-medium">{user.totalBookings} đơn</div>
+                      <div className="text-green-600">{formatPrice(user.totalSpent)}</div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <div className="flex space-x-2">                      {/* View Details */}
+                  
+                  {/* Cột thao tác - các nút bấm hình chữ nhật nhỏ gọn dễ thao tác */}
+                  <td className="px-2 py-3 w-28">
+                    <div className="flex flex-wrap gap-1">
+                      {/* === NÚT XEM CHI TIẾT NGƯỜI DÙNG - nút hình chữ nhật compact === */}
                       <button
                         onClick={() => {
                           setSelectedUser(user);
                           setShowDetailsModal(true);
                         }}
-                        className="text-blue-600 hover:text-blue-900"
-                        title="Xem chi tiết"
-                        aria-label="Xem chi tiết người dùng"
+                        className="px-2 py-1 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded text-xs font-medium flex items-center gap-1 transition-colors min-w-fit"
+                        title="Xem chi tiết thông tin người dùng"
                       >
-                        <EyeIcon className="h-4 w-4" />
+                        <EyeIcon className="h-3 w-3" />
+                        <span className="hidden xl:inline">Chi tiết</span>
                       </button>
 
-                      {/* Toggle Status */}
+                      {/* === NÚT KHÓA/MỞ KHÓA TÀI KHOẢN - nút hình chữ nhật compact === */}
                       {user.role !== 'admin' && (
                         <button
                           onClick={() => handleToggleUserStatus(user.id, user.status)}
-                          className={`${
+                          className={`px-2 py-1 rounded text-xs font-medium flex items-center gap-1 transition-colors min-w-fit ${
                             user.status === 'active' 
-                              ? 'text-red-600 hover:text-red-900'
-                              : 'text-green-600 hover:text-green-900'
+                              ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                              : 'bg-green-100 text-green-700 hover:bg-green-200'
                           }`}
-                          title={user.status === 'active' ? 'Khóa tài khoản' : 'Kích hoạt tài khoản'}
-                          aria-label={user.status === 'active' ? 'Khóa tài khoản' : 'Kích hoạt tài khoản'}
+                          title={user.status === 'active' ? 'Khóa tài khoản người dùng' : 'Kích hoạt tài khoản người dùng'}
                         >
                           {user.status === 'active' ? (
-                            <LockClosedIcon className="h-4 w-4" />
+                            <>
+                              <LockClosedIcon className="h-3 w-3" />
+                              <span className="hidden xl:inline">Khóa</span>
+                            </>
                           ) : (
-                            <LockOpenIcon className="h-4 w-4" />
+                            <>
+                              <LockOpenIcon className="h-3 w-3" />
+                              <span className="hidden xl:inline">Mở</span>
+                            </>
                           )}
                         </button>
                       )}
@@ -493,6 +492,7 @@ const AdminUsers: React.FC = () => {
           </table>
         </div>
 
+        {/* Không tìm thấy người dùng */}
         {filteredUsers.length === 0 && (
           <div className="text-center py-12">
             <div className="text-gray-500">
@@ -503,13 +503,15 @@ const AdminUsers: React.FC = () => {
         )}
       </div>
 
-      {/* Modal Chi tiết người dùng */}
+      {/* Modal chi tiết thông tin người dùng */}
       {showDetailsModal && selectedUser && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-semibold">Chi tiết người dùng</h3>                <button
+                <h3 className="text-xl font-semibold">Chi tiết người dùng</h3>
+                {/* Nút đóng modal */}
+                <button
                   onClick={() => {
                     setShowDetailsModal(false);
                     setSelectedUser(null);
@@ -524,7 +526,7 @@ const AdminUsers: React.FC = () => {
               </div>
 
               <div className="space-y-6">
-                {/* Avatar và thông tin cơ bản */}
+                {/* Phần avatar và thông tin cơ bản */}
                 <div className="flex items-center space-x-4">
                   <div className="h-20 w-20 rounded-full bg-gray-300 flex items-center justify-center">
                     {selectedUser.avatar ? (
@@ -543,7 +545,9 @@ const AdminUsers: React.FC = () => {
                       {renderStatus(selectedUser.status)}
                     </div>
                   </div>
-                </div>                {/* Thông tin liên hệ */}
+                </div>
+
+                {/* Phần thông tin liên hệ */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Số điện thoại</label>
@@ -561,7 +565,7 @@ const AdminUsers: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Địa chỉ và Bio */}
+                {/* Phần địa chỉ và giới thiệu */}
                 <div className="grid grid-cols-1 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Địa chỉ</label>
@@ -577,7 +581,9 @@ const AdminUsers: React.FC = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-1">ID</label>
                     <p className="text-gray-900 font-mono text-xs">{selectedUser.id}</p>
                   </div>
-                </div>                {/* Thống kê hoạt động */}
+                </div>
+
+                {/* Phần thống kê hoạt động */}
                 <div className="grid grid-cols-4 gap-4">
                   <div className="text-center p-4 bg-gray-50 rounded-lg">
                     <div className="text-2xl font-bold text-blue-600">{selectedUser.totalBookings}</div>
@@ -614,7 +620,7 @@ const AdminUsers: React.FC = () => {
                   </div>
                 )}
 
-                {/* Thông tin thời gian */}
+                {/* Phần thông tin thời gian */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Ngày tham gia</label>

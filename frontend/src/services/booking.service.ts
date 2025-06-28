@@ -52,7 +52,7 @@ export interface CreateBookingData {
   customer_address: string;
   phone: string;
   notes?: string;
-  payment_method: 'cash'; // Chỉ hỗ trợ tiền mặt hiện tại
+  payment_method: 'cash'; // Chỉ hỗ trợ tiền mặt
 }
 
 /**
@@ -166,9 +166,9 @@ export class BookingService {
     try {
       console.log('📅 Đang tạo booking mới với dữ liệu:', bookingData);
       
-      // Validate payment method - chỉ cho phép tiền mặt
+      // Validate payment method - chỉ hỗ trợ tiền mặt
       if (bookingData.payment_method !== 'cash') {
-        throw new Error('Hiện tại chỉ hỗ trợ thanh toán bằng tiền mặt');
+        throw new Error('Phương thức thanh toán không được hỗ trợ');
       }
       
       // Gọi API tạo booking

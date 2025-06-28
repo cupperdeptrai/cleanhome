@@ -256,26 +256,32 @@ const Promotions: React.FC = () => {
             </div>
           </div>
 
-          {/* Danh sách khuyến mãi - Responsive Design */}
+          {/* Danh sách khuyến mãi - Thiết kế compact và dễ thao tác */}
           <div className="mt-6 bg-white shadow overflow-hidden rounded-lg">
-          {/* Desktop Table View */}
+          {/* Desktop Table View - Thiết kế compact tối ưu */}
           <div className="hidden lg:block">
-            <table className="w-full divide-y divide-gray-200">
+            {/* Header bảng khuyến mãi được tối ưu cho gọn gàng hơn */}
+            <table className="w-full divide-y divide-gray-200 table-fixed">
               <thead className="bg-gray-50">
                 <tr>
-                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  {/* Cột mã khuyến mãi - căn trái tiêu đề theo yêu cầu */}
+                  <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-28 whitespace-nowrap">
                     Mã khuyến mãi
                   </th>
-                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  {/* Cột tên & chi tiết - căn trái tiêu đề theo yêu cầu */}
+                  <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-80 whitespace-nowrap">
                     Tên & Chi tiết
                   </th>
-                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  {/* Cột thời gian & trạng thái - căn trái tiêu đề theo yêu cầu */}
+                  <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-40 whitespace-nowrap">
                     Thời gian & Trạng thái
                   </th>
-                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  {/* Cột sử dụng - căn trái tiêu đề theo yêu cầu */}
+                  <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20 whitespace-nowrap">
                     Sử dụng
                   </th>
-                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  {/* Cột thao tác - căn trái tiêu đề theo yêu cầu */}
+                  <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32 whitespace-nowrap">
                     Thao tác
                   </th>
                 </tr>
@@ -283,11 +289,11 @@ const Promotions: React.FC = () => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredPromotions.map((promotion) => (
                   <tr key={promotion.id} className="hover:bg-gray-50">
-                    {/* Cột 1: Mã khuyến mãi */}
-                    <td className="px-4 py-4">
+                    {/* Cột 1: Mã khuyến mãi - hiển thị compact với thông tin giảm giá */}
+                    <td className="px-3 py-3 w-28">
                       <div>
                         <div className="text-sm font-bold text-blue-600">{promotion.code}</div>
-                        <div className="text-sm text-gray-900">
+                        <div className="text-xs text-gray-900">
                           {promotion.discountType === 'percentage' 
                             ? `${promotion.discountValue}%` 
                             : formatCurrency(promotion.discountValue)
@@ -301,11 +307,11 @@ const Promotions: React.FC = () => {
                       </div>
                     </td>
                     
-                    {/* Cột 2: Tên & mô tả */}
-                    <td className="px-4 py-4">
+                    {/* Cột 2: Tên & mô tả - hiển thị compact thông tin chi tiết với chiều rộng cố định */}
+                    <td className="px-3 py-3 w-80">
                       <div>
                         <div className="text-sm font-medium text-gray-900">{promotion.name}</div>
-                        <div className="text-sm text-gray-500 overflow-hidden max-w-xs">
+                        <div className="text-xs text-gray-500 overflow-hidden max-w-xs">
                           <div className="truncate">{promotion.description}</div>
                         </div>
                         {promotion.maxDiscount && (
@@ -316,22 +322,22 @@ const Promotions: React.FC = () => {
                       </div>
                     </td>
                     
-                    {/* Cột 3: Thời gian & trạng thái */}
-                    <td className="px-4 py-4">
+                    {/* Cột 3: Thời gian & trạng thái - hiển thị compact với chiều rộng tăng */}
+                    <td className="px-3 py-3 w-40">
                       <div>
-                        <div className="text-sm text-gray-900">
+                        <div className="text-xs text-gray-900">
                           {new Date(promotion.startDate).toLocaleDateString('vi-VN')}
                         </div>
-                        <div className="text-sm text-gray-900">
+                        <div className="text-xs text-gray-900">
                           đến {new Date(promotion.endDate).toLocaleDateString('vi-VN')}
                         </div>
-                        <div className="mt-2">
-                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        <div className="mt-1">
+                          <span className={`px-2 py-1 inline-flex text-xs leading-4 font-medium rounded border ${
                             promotion.isActive 
                               ? isExpired(promotion.endDate) 
-                                ? 'bg-yellow-100 text-yellow-800' 
-                                : 'bg-green-100 text-green-800' 
-                              : 'bg-red-100 text-red-800'
+                                ? 'bg-yellow-50 text-yellow-700 border-yellow-200' 
+                                : 'bg-green-50 text-green-700 border-green-200' 
+                              : 'bg-red-50 text-red-700 border-red-200'
                           }`}>
                             {promotion.isActive 
                               ? isExpired(promotion.endDate) 
@@ -344,8 +350,8 @@ const Promotions: React.FC = () => {
                       </div>
                     </td>
                     
-                    {/* Cột 4: Sử dụng */}
-                    <td className="px-4 py-4">
+                    {/* Cột 4: Sử dụng - hiển thị compact thống kê sử dụng */}
+                    <td className="px-3 py-3 w-20">
                       <div>
                         <div className="text-sm font-medium text-gray-900">{promotion.usageCount} lượt</div>
                         {(promotion.usageLimit || 0) > 0 && (
@@ -356,28 +362,58 @@ const Promotions: React.FC = () => {
                       </div>
                     </td>
                     
-                    {/* Cột 5: Thao tác */}
-                    <td className="px-4 py-4">
-                      <div className="flex flex-col space-y-1">
+                    {/* Cột 5: Thao tác - các nút bấm hình chữ nhật nhỏ gọn dễ thao tác */}
+                    <td className="px-3 py-3 w-32">
+                      <div className="flex flex-wrap gap-1">
+                        {/* === NÚT SỬA KHUYẾN MÃI - nút hình chữ nhật compact === */}
                         <button
                           onClick={() => handleEditPromotion(promotion)}
-                          className="text-blue-600 hover:text-blue-900 text-xs font-medium text-left"
+                          className="px-2 py-1 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded text-xs font-medium flex items-center gap-1 transition-colors min-w-fit"
+                          title="Chỉnh sửa thông tin khuyến mãi"
                         >
-                          Sửa
+                          <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                          <span className="hidden xl:inline">Sửa</span>
                         </button>
+                        
+                        {/* === NÚT KÍCH HOẠT/TẠM NGƯNG KHUYẾN MÃI - nút hình chữ nhật compact === */}
                         <button
                           onClick={() => handleToggleStatus(promotion.id)}
-                          className={`${
-                            promotion.isActive ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'
-                          } text-xs font-medium text-left`}
+                          className={`px-2 py-1 rounded text-xs font-medium flex items-center gap-1 transition-colors min-w-fit ${
+                            promotion.isActive 
+                              ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                              : 'bg-green-100 text-green-700 hover:bg-green-200'
+                          }`}
+                          title={promotion.isActive ? 'Tạm ngưng sử dụng khuyến mãi' : 'Kích hoạt khuyến mãi'}
                         >
-                          {promotion.isActive ? 'Tạm ngưng' : 'Kích hoạt'}
+                          {promotion.isActive ? (
+                            <>
+                              <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              <span className="hidden xl:inline">Ngưng</span>
+                            </>
+                          ) : (
+                            <>
+                              <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h8m-9 4h10a2 2 0 002-2V7a2 2 0 00-2-2H6a2 2 0 00-2 2v11a2 2 0 002 2z" />
+                              </svg>
+                              <span className="hidden xl:inline">Kích hoạt</span>
+                            </>
+                          )}
                         </button>
+                        
+                        {/* === NÚT XÓA KHUYẾN MÃI - nút hình chữ nhật compact === */}
                         <button
                           onClick={() => handleDeletePromotion(promotion.id)}
-                          className="text-red-600 hover:text-red-900 text-xs font-medium text-left"
+                          className="px-2 py-1 bg-red-100 text-red-700 hover:bg-red-200 rounded text-xs font-medium flex items-center gap-1 transition-colors min-w-fit"
+                          title="Xóa khuyến mãi khỏi hệ thống"
                         >
-                          Xóa
+                          <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                          <span className="hidden xl:inline">Xóa</span>
                         </button>
                       </div>
                     </td>
@@ -399,12 +435,12 @@ const Promotions: React.FC = () => {
                       <div className="text-sm font-medium text-gray-900">{promotion.name}</div>
                     </div>
                     <div className="flex flex-col items-end">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                      <span className={`px-2 py-1 inline-flex text-xs leading-4 font-medium rounded border ${
                         promotion.isActive 
                           ? isExpired(promotion.endDate) 
-                            ? 'bg-yellow-100 text-yellow-800' 
-                            : 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
+                            ? 'bg-yellow-50 text-yellow-700 border-yellow-200' 
+                            : 'bg-green-50 text-green-700 border-green-200' 
+                          : 'bg-red-50 text-red-700 border-red-200'
                       }`}>
                         {promotion.isActive 
                           ? isExpired(promotion.endDate) 
@@ -498,12 +534,12 @@ const Promotions: React.FC = () => {
                       <div className="text-lg font-bold text-blue-600">{promotion.code}</div>
                       <div className="text-sm font-medium text-gray-900">{promotion.name}</div>
                     </div>
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                    <span className={`px-2 py-1 inline-flex text-xs leading-4 font-medium rounded border ${
                       promotion.isActive 
                         ? isExpired(promotion.endDate) 
-                          ? 'bg-yellow-100 text-yellow-800' 
-                          : 'bg-green-100 text-green-800' 
-                        : 'bg-red-100 text-red-800'
+                          ? 'bg-yellow-50 text-yellow-700 border-yellow-200' 
+                          : 'bg-green-50 text-green-700 border-green-200' 
+                        : 'bg-red-50 text-red-700 border-red-200'
                     }`}>
                       {promotion.isActive 
                         ? isExpired(promotion.endDate) 

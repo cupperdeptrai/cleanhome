@@ -2,17 +2,6 @@ import React, { createContext, useState, useContext, useEffect, ReactNode } from
 import AuthService from '../services/auth.service';
 
 /**
- * Helper function để format avatar URL
- * Nếu avatar bắt đầu bằng /static thì thêm base URL
- */
-const formatAvatarUrl = (avatar?: string): string | undefined => {
-  if (!avatar) return undefined;
-  if (avatar.startsWith('http')) return avatar;
-  if (avatar.startsWith('/static')) return `http://localhost:5000${avatar}`;
-  return avatar;
-};
-
-/**
  * Interface cho dữ liệu người dùng
  */
 export interface SafeUser {
@@ -24,6 +13,17 @@ export interface SafeUser {
   address?: string;
   avatar?: string;
 }
+
+/**
+ * Helper function để format URL avatar
+ */
+const formatAvatarUrl = (avatar?: string): string | undefined => {
+  if (!avatar) return undefined;
+  // Nếu avatar đã là full URL thì không cần format
+  if (avatar.startsWith('http')) return avatar;
+  // Nếu avatar là relative path từ backend thì thêm base URL
+  return `http://localhost:5000${avatar}`;
+};
 
 /**
  * Interface cho Auth Context
@@ -72,15 +72,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const token = localStorage.getItem('token');
       const storedUser = localStorage.getItem('user');
       
-      if (token && storedUser) {        try {
+      if (token && storedUser) {
+        try {
           const userData = JSON.parse(storedUser) as SafeUser;
-          // Đảm bảo avatar URL được format đúng khi khôi phục từ localStorage
-          const formattedUserData = {
-            ...userData,
-            avatar: formatAvatarUrl(userData.avatar)
-          };
-          setUser(formattedUserData);
-          console.log('✅ Đã khôi phục phiên đăng nhập:', formattedUserData.email);
+          setUser(userData);
+          console.log('✅ Đã khôi phục phiên đăng nhập:', userData.email);
         } catch (error) {
           console.warn('⚠️ Lỗi khi parse user data từ localStorage:', error);
           localStorage.removeItem('token');

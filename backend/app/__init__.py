@@ -21,12 +21,25 @@ def create_app(config_name=None):
     app = Flask(__name__)
     app.config.from_object(config[config_name])
     
+    # Disable automatic trailing slash redirect for CORS compatibility
+    app.url_map.strict_slashes = False
+    
     # Initialize extensions
     init_extensions(app)
     
     # Setup logging
     setup_logging(app)
-      # Register blueprints
+    
+    # Add CORS headers for all responses
+    @app.after_request
+    def after_request(response):
+        response.headers.add('Access-Control-Allow-Origin', 'http://localhost:5173')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+        response.headers.add('Access-Control-Allow-Credentials', 'true')
+        return response
+    
+    # Register blueprints
     register_blueprints(app)
     
     # Register error handlers
@@ -49,7 +62,7 @@ def register_blueprints(app):
     from app.api.promotions import promotions_bp
     from app.api.reviews import reviews_bp
     from app.api.staff import staff_bp
-    from app.api.payments import payments_bp
+    # from app.api.payments import payments_bp
     from app.api.notifications import notifications_bp
     from app.api.activity import activity_bp
     from app.api.reports import reports_bp
@@ -64,7 +77,7 @@ def register_blueprints(app):
     app.register_blueprint(promotions_bp, url_prefix='/api/promotions')
     app.register_blueprint(reviews_bp, url_prefix='/api/reviews')
     app.register_blueprint(staff_bp, url_prefix='/api/staff')
-    app.register_blueprint(payments_bp, url_prefix='/api/payments')
+    # app.register_blueprint(payments_bp, url_prefix='/api/payments')
     app.register_blueprint(notifications_bp, url_prefix='/api/notifications')
     app.register_blueprint(activity_bp, url_prefix='/api/activity')
     app.register_blueprint(reports_bp, url_prefix='/api/reports')

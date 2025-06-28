@@ -55,7 +55,7 @@ export interface AdminBooking {
   totalPrice: number;
   status: 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'rescheduled';
   paymentStatus: 'unpaid' | 'pending' | 'paid' | 'refunded' | 'failed';
-  paymentMethod: 'cash' | 'bank_transfer' | 'credit_card' | 'momo' | 'zalopay' | 'vnpay' | null;
+  paymentMethod: 'cash' | 'bank_transfer' | 'credit_card' | 'momo' | 'zalopay' | null;
   notes: string | null;
   cancelReason: string | null;
   createdAt: string;
@@ -89,7 +89,20 @@ export interface AdminUser {
 }
 
 /**
- * Interface cho staff admin 
+ * =====================================================================
+ * Interface cho staff admin - ĐÃ CẬP NHẬT ĐỒNG BỘ THỐNG KÊ
+ * =====================================================================
+ * 
+ * THAY ĐỔI CHÍNH:
+ * ❌ ĐÃ XÓA: trường 'rating' - Không còn đánh giá nhân viên
+ * ✅ ĐÃ THÊM: assignedServices[] - Danh sách dịch vụ được phân công
+ * ✅ CẬP NHẬT: totalBookings, completedBookings - Thống kê đồng bộ từ backend
+ * 
+ * DỮ LIỆU ĐỒNG BỘ:
+ * - totalBookings: Tổng số đơn hàng (từ cả Booking.staff_id và BookingStaff)
+ * - completedBookings: Số đơn đã hoàn thành (status='completed')
+ * - assignedServices: Danh sách dịch vụ được phân công (distinct từ bookings)
+ * =====================================================================
  */
 export interface AdminStaff {
   id: string;
@@ -99,9 +112,10 @@ export interface AdminStaff {
   status: 'active' | 'inactive' | 'locked' | 'pending';
   avatar: string | null;
   hireDate: string;
-  rating: number;
-  totalBookings: number;
-  completedBookings: number;
+  // ❌ ĐÃ XÓA: rating - Không còn đánh giá nhân viên
+  totalBookings: number;        // ✅ Tổng số đơn hàng được phân công (đồng bộ từ backend)
+  completedBookings: number;    // ✅ Số đơn hàng đã hoàn thành (đồng bộ từ backend)
+  assignedServices: string[];   // ✅ Danh sách dịch vụ được phân công (đồng bộ từ backend)
   createdAt: string;
   updatedAt: string;
 }
@@ -152,12 +166,21 @@ export class AdminService {
       await this.refreshTokenIfNeeded();
       
       const headers = this.getAuthHeaders();
-      console.log('📋 AdminService.getBookings - Calling API:', `${this.API_BASE}/bookings`);
+      // Thêm cache-busting để tránh cache
+      const timestamp = Date.now();
+      const apiUrl = `${this.API_BASE}/bookings?_t=${timestamp}`;
+      
+      console.log('📋 AdminService.getBookings - Calling API:', apiUrl);
       console.log('📋 AdminService.getBookings - Headers:', headers);
       
-      const response = await fetch(`${this.API_BASE}/bookings`, {
+      const response = await fetch(apiUrl, {
         method: 'GET',
-        headers: headers
+        headers: {
+          ...headers,
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
       });
       
       console.log('📋 AdminService.getBookings - Response status:', response.status);
@@ -183,6 +206,18 @@ export class AdminService {
       // Backend trả về {data: [...]} hoặc array trực tiếp
       const bookings = Array.isArray(data) ? data : (data.data || []);
       console.log('📋 AdminService.getBookings - Extracted bookings count:', bookings.length);
+      
+      // Log sample booking để debug
+      if (bookings.length > 0) {
+        console.log('📝 AdminService.getBookings - Sample booking data:', {
+          id: bookings[0].id,
+          bookingCode: bookings[0].bookingCode,
+          staffId: bookings[0].staffId,
+          staffName: bookings[0].staffName,
+          assignedStaff: bookings[0].assignedStaff,
+          staffCount: bookings[0].staffCount
+        });
+      }
       
       return bookings;
     } catch (error) {
@@ -516,9 +551,9 @@ export class AdminService {
     } catch (error) {
       console.error('❌ Lỗi khi cập nhật trạng thái nhân viên:', error);
       console.error('📊 Error details:', {
-        name: error?.name,
-        message: error?.message,
-        stack: error?.stack
+        name: error instanceof Error ? error.name : 'Unknown',
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
       });
       throw error;
     }

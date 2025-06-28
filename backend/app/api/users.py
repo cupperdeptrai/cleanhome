@@ -238,7 +238,8 @@ def upload_avatar(user_id):
         filename = secure_filename(file.filename)
         file_extension = filename.rsplit('.', 1)[1].lower()
         new_filename = f"avatar_{user_id}_{hash(current_app.config.get('SECRET_KEY', '')) % 1000000}.{file_extension}"
-          # Tạo thư mục uploads/avatars nếu chưa có
+        
+        # Tạo thư mục uploads/avatars nếu chưa có
         upload_folder = os.path.join(current_app.config['UPLOAD_FOLDER'], 'avatars')
         os.makedirs(upload_folder, exist_ok=True)
         current_app.logger.info(f"📁 Thư mục upload: {upload_folder}")
@@ -348,7 +349,8 @@ def delete_user(user_id):
         # Không cho phép xóa chính mình
         if str(current_user_id) == user_id:
             return jsonify({'error': 'Cannot delete your own account'}), 400
-          # Xóa avatar nếu có
+        
+        # Xóa avatar nếu có
         if user.avatar:
             avatar_path = os.path.join(current_app.config['UPLOAD_FOLDER'], user.avatar.lstrip('/static/uploads/'))
             if os.path.exists(avatar_path):

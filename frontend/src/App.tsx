@@ -19,6 +19,7 @@ import Profile from './pages/Profile';
 import Security from './pages/Security';
 import Support from './pages/Support';
 
+
 // Admin Pages
 import AdminDashboard from './pages/admin/Dashboard';
 import AdminBookings from './pages/admin/Bookings';
@@ -74,6 +75,7 @@ const App: React.FC = () => {
       <Route path="/forgot-password" element={<MainLayout><ForgotPassword /></MainLayout>} />
       <Route path="/services" element={<MainLayout><Services /></MainLayout>} />
       <Route path="/support" element={<MainLayout><Support /></MainLayout>} />
+      
       
       {/* Protected User Routes */}
       <Route path="/booking" element={

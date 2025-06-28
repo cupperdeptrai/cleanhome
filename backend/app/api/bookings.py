@@ -122,12 +122,12 @@ def create_booking():
                     'message': f'Trường {field} là bắt buộc'
                 }), 400
         
-        # Validate payment method - chỉ chấp nhận tiền mặt hiện tại
+        # Validate payment method - hỗ trợ tiền mặt và VNPay
         payment_method = data.get('payment_method', 'cash')
-        if payment_method != 'cash':
+        if payment_method not in ['cash', 'vnpay']:
             return jsonify({
                 'status': 'error',
-                'message': 'Hiện tại chỉ hỗ trợ thanh toán bằng tiền mặt'
+                'message': 'Phương thức thanh toán không được hỗ trợ. Chỉ chấp nhận: cash, vnpay'
             }), 400
         
         # Parse date và time

@@ -4,7 +4,6 @@ import { useAuth } from '../context/AuthContext';
 import { useServiceContext } from '../context/ServiceContext';
 import Card from '../components/UI/Card';
 import Button from '../components/UI/Button';
-import PaymentMethodModal from '../components/modals/PaymentMethodModal';
 import AddressSelector, { AddressValue } from '../components/forms/AddressSelector';
 import BookingService from '../services/booking.service';
 import { formatFullAddress, getAddressNames } from '../data/vietnamAddress';
@@ -132,7 +131,7 @@ const BookingForm = () => {
   /**
    * Hàm xử lý xác nhận thanh toán và tạo booking
    * Gọi API để tạo booking mới với thông tin đã nhập
-   * @param paymentMethod - Phương thức thanh toán được chọn (hiện tại chỉ hỗ trợ 'cash')
+   * @param paymentMethod - Phương thức thanh toán được chọn (chỉ 'cash')
    */
   const handlePaymentConfirm = async (paymentMethod: string) => {
     try {
@@ -182,7 +181,7 @@ const BookingForm = () => {
         customer_address: fullAddress, // Chuyển object thành string
         phone: user?.phone || '', // Lấy số điện thoại từ thông tin user
         notes: notes,
-        payment_method: paymentMethod as 'cash'
+        payment_method: 'cash' as const // Chỉ hỗ trợ thanh toán tiền mặt
       };
       
       console.log('� Selected Service ID:', selectedService);
@@ -193,6 +192,8 @@ const BookingForm = () => {
       const result = await BookingService.createBooking(bookingData);
       
       console.log('✅ Tạo booking thành công:', result);
+      
+      // Thanh toán tiền mặt - hoàn tất đặt lịch
       
       // Emit custom event để thông báo có booking mới
       window.dispatchEvent(new CustomEvent('newBookingCreated', { 
@@ -483,13 +484,35 @@ const BookingForm = () => {
         </div>
       </div>
       
-      {/* Modal chọn phương thức thanh toán */}
-      <PaymentMethodModal
-        isOpen={showPaymentModal}
-        onClose={() => setShowPaymentModal(false)}
-        onConfirm={handlePaymentConfirm}
-        totalAmount={totalPrice}
-      />
+      {/* Modal xác nhận đặt lịch */}
+      {showPaymentModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-bold mb-4">Xác nhận đặt lịch</h3>
+            <p className="text-gray-600 mb-4">
+              Tổng tiền: <span className="font-bold text-green-600">{totalPrice?.toLocaleString()}đ</span>
+            </p>
+            <p className="text-sm text-gray-500 mb-6">
+              Thanh toán bằng tiền mặt khi dịch vụ hoàn thành
+            </p>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setShowPaymentModal(false)}
+                className="flex-1"
+              >
+                Hủy
+              </Button>
+              <Button
+                onClick={() => handlePaymentConfirm('cash')}
+                className="flex-1"
+              >
+                Xác nhận đặt lịch
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

@@ -7,14 +7,12 @@ import {
   MagnifyingGlassIcon, 
   PencilIcon, 
   TrashIcon,
-  StarIcon,
   UserIcon,
   PhoneIcon,
   EnvelopeIcon,
   CalendarIcon,
   XMarkIcon
 } from '@heroicons/react/24/outline';
-import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 
 /**
  * Trang Quản lý Nhân viên - Phiên bản mới đồng bộ với schema
@@ -179,37 +177,6 @@ const StaffManagement: React.FC = () => {
     setIsDetailModalOpen(true);
   };
 
-  // Render star rating
-  const renderStarRating = (rating: number) => {
-    const stars = [];
-    const fullStars = Math.floor(rating);
-    const hasHalfStar = rating % 1 !== 0;
-
-    for (let i = 0; i < fullStars; i++) {
-      stars.push(
-        <StarIconSolid key={i} className="h-4 w-4 text-yellow-400" />
-      );
-    }
-
-    if (hasHalfStar) {
-      stars.push(
-        <div key="half" className="relative">
-          <StarIcon className="h-4 w-4 text-gray-300" />
-          <StarIconSolid className="h-4 w-4 text-yellow-400 absolute top-0 left-0" style={{ clipPath: 'inset(0 50% 0 0)' }} />
-        </div>
-      );
-    }
-
-    const remainingStars = 5 - Math.ceil(rating);
-    for (let i = 0; i < remainingStars; i++) {
-      stars.push(
-        <StarIcon key={`empty-${i}`} className="h-4 w-4 text-gray-300" />
-      );
-    }
-
-    return stars;
-  };
-
   // Get status badge style
   const getStatusBadge = (status: AdminStaff['status']) => {
     switch (status) {
@@ -318,25 +285,28 @@ const StaffManagement: React.FC = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  {/* Cột nhân viên - căn trái tiêu đề theo yêu cầu */}
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap w-1/4">
                     Nhân viên
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  {/* Cột liên hệ - căn trái tiêu đề theo yêu cầu */}
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap w-1/4">
                     Liên hệ
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  {/* Cột trạng thái - căn trái tiêu đề theo yêu cầu */}
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap w-1/6">
                     Trạng thái
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Đánh giá
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  {/* Cột thống kê - căn trái tiêu đề theo yêu cầu */}
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap w-1/6">
                     Thống kê
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  {/* Cột ngày vào làm - căn trái tiêu đề theo yêu cầu */}
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap w-1/6">
                     Ngày vào làm
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  {/* Cột thao tác - căn trái tiêu đề theo yêu cầu */}
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap w-auto">
                     Thao tác
                   </th>
                 </tr>
@@ -377,12 +347,6 @@ const StaffManagement: React.FC = () => {
                       <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusBadge(staff.status)}`}>
                         {getStatusText(staff.status)}
                       </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        {renderStarRating(staff.rating)}
-                        <span className="ml-2 text-sm text-gray-500">({staff.rating})</span>
-                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       <div>Tổng: {staff.totalBookings} đơn</div>
@@ -655,18 +619,6 @@ const StaffManagement: React.FC = () => {
                   <div className="bg-green-50 p-4 rounded-lg">
                     <div className="text-2xl font-bold text-green-600">{selectedStaff.completedBookings}</div>
                     <div className="text-sm text-green-600">Đã hoàn thành</div>
-                  </div>
-                </div>
-
-                <div className="bg-yellow-50 p-4 rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-2xl font-bold text-yellow-600">{selectedStaff.rating}</div>
-                      <div className="text-sm text-yellow-600">Đánh giá trung bình</div>
-                    </div>
-                    <div className="flex items-center">
-                      {renderStarRating(selectedStaff.rating)}
-                    </div>
                   </div>
                 </div>
               </div>
