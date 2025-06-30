@@ -9,9 +9,11 @@ from datetime import datetime
 import uuid
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models.booking import Booking
+from app.models.booking import Booking, BookingItem
 from app.models.user import User
+from app.models.service import Service
 from app.extensions import db
+from .vnpay import generate_vnpay_payment_url # Import hàm helper
 
 bookings_bp = Blueprint('bookings', __name__)
 
@@ -51,7 +53,8 @@ def get_my_bookings():
         # Order by created date descending
         bookings = query.order_by(Booking.created_at.desc()).all()
         
-        return jsonify([booking.to_dict() for booking in bookings])
+        # Sử dụng to_dict_with_service để có tên dịch vụ
+        return jsonify([booking.to_dict_with_service() for booking in bookings])
         
     except Exception as e:
         return jsonify({
@@ -68,17 +71,24 @@ def get_booking(booking_id):
         
         # Tìm booking và kiểm tra quyền truy cập
         booking = Booking.query.filter_by(
-            id=booking_id,
-            user_id=current_user_id
+            id=booking_id
         ).first()
-        
+
         if not booking:
             return jsonify({
                 'status': 'error',
-                'message': 'Không tìm thấy booking hoặc bạn không có quyền truy cập'
+                'message': 'Không tìm thấy booking'
             }), 404
+
+        # Admin hoặc chủ booking mới có quyền xem
+        user = User.query.get(current_user_id)
+        if booking.user_id != current_user_id and (not user or user.role != 'admin'):
+             return jsonify({
+                'status': 'error',
+                'message': 'Bạn không có quyền truy cập booking này'
+            }), 403
             
-        return jsonify(booking.to_dict())
+        return jsonify(booking.to_dict_with_service())
         
     except Exception as e:
         return jsonify({
@@ -90,135 +100,122 @@ def get_booking(booking_id):
 @jwt_required()
 def create_booking():
     """
-    Tạo đơn đặt lịch mới với đầy đủ thông tin thanh toán
-    
-    Expected request body:
-    {
-        "service_id": "uuid",
-        "booking_date": "2025-06-20", 
-        "booking_time": "09:00",
-        "duration": 2,
-        "customer_address": "123 ABC Street",
-        "phone": "0123456789",
-        "notes": "Special requirements",
-        "payment_method": "cash"
-    }
+    Tạo đơn đặt lịch mới
+    Nếu phương thức thanh toán là 'vnpay', sẽ tạo và trả về URL thanh toán
     """
     try:
-        # Lấy thông tin user hiện tại từ JWT token
         current_user_id = get_jwt_identity()
         data = request.get_json()
         
-        # Validate dữ liệu bắt buộc
-        required_fields = [
-            'service_id', 'booking_date', 'booking_time', 
-            'customer_address', 'phone'
-        ]
-        
+        # Validate dữ liệu đầu vào
+        required_fields = ['service_id', 'booking_date', 'booking_time', 'customer_address']
         for field in required_fields:
             if field not in data or not data[field]:
                 return jsonify({
-                    'status': 'error',
+                    'status': 'error', 
                     'message': f'Trường {field} là bắt buộc'
                 }), 400
         
-        # Validate payment method - hỗ trợ tiền mặt và VNPay
+        # Validate phương thức thanh toán
         payment_method = data.get('payment_method', 'cash')
-        if payment_method not in ['cash', 'vnpay']:
+        if payment_method not in ['cash', 'vnpay', 'bank_transfer', 'credit_card', 'momo', 'zalopay']:
             return jsonify({
-                'status': 'error',
-                'message': 'Phương thức thanh toán không được hỗ trợ. Chỉ chấp nhận: cash, vnpay'
+                'status': 'error', 
+                'message': 'Phương thức thanh toán không hợp lệ'
             }), 400
         
-        # Parse date và time
-        from datetime import datetime
+        # Parse ngày giờ
         try:
             booking_date = datetime.strptime(data['booking_date'], '%Y-%m-%d').date()
             booking_time = datetime.strptime(data['booking_time'], '%H:%M').time()
         except ValueError:
             return jsonify({
-                'status': 'error',
+                'status': 'error', 
                 'message': 'Định dạng ngày hoặc giờ không hợp lệ'
-            }), 400        # Lấy thông tin dịch vụ để tính giá
-        from app.models.service import Service
-        
-        try:
-            service_uuid = uuid.UUID(data['service_id'])
-        except ValueError:
-            return jsonify({
-                'status': 'error',
-                'message': 'service_id không hợp lệ'
             }), 400
-            
-        # Tìm service để lấy giá thực tế
-        service = Service.query.filter_by(id=service_uuid).first()
+
+        # Kiểm tra dịch vụ
+        service = Service.query.get(data['service_id'])
         if not service:
             return jsonify({
-                'status': 'error',
+                'status': 'error', 
                 'message': 'Dịch vụ không tồn tại'
             }), 404
             
-        if service.status != 'active':
-            return jsonify({
-                'status': 'error', 
-                'message': 'Dịch vụ hiện không hoạt động'
-            }), 400
+        # Tính tổng tiền
+        area = float(data.get('area', 0)) if data.get('area') else 0
+        quantity = int(data.get('quantity', 1)) if data.get('quantity') else 1
+        unit_price = float(service.price)
+        subtotal = unit_price * quantity
         
-        # Tính tổng giá tiền dựa trên giá dịch vụ thực tế
-        duration = float(data.get('duration', service.duration / 60 if service.duration else 2))  # duration từ service hoặc default 2h
-        unit_price = float(service.price)  # Lấy giá từ service
-        subtotal = unit_price  # Giá service đã là tổng, không nhân với duration
-        total_price = subtotal  # Chưa có discount
-          # Tạo booking mới với đầy đủ thông tin
-        booking = Booking(
-            user_id=current_user_id,  # current_user_id đã là UUID string
+        # Tính discount và tax (có thể mở rộng sau)
+        discount = float(data.get('discount', 0))
+        tax = float(data.get('tax', 0))
+        total_price = subtotal - discount + tax
+          
+        # Tạo booking mới
+        new_booking = Booking(
+            user_id=current_user_id,
             booking_date=booking_date,
             booking_time=booking_time,
             customer_address=data['customer_address'],
+            area=area,
             notes=data.get('notes', ''),
             subtotal=subtotal,
-            discount=0,
-            tax=0,
+            discount=discount,
+            tax=tax,
             total_price=total_price,
-            status='pending',  # Trạng thái mặc định
-            payment_status='unpaid',  # Đổi từ pending để khớp với ENUM default
-            payment_method=payment_method
+            payment_method=payment_method,
+            payment_status='unpaid',
+            status='pending'
         )
-          # Lưu booking vào database
-        db.session.add(booking)
-        db.session.flush()  # Flush để có ID của booking
-          # Tạo booking item cho dịch vụ
-        from app.models.booking import BookingItem
         
+        db.session.add(new_booking)
+        db.session.flush()  # Để có ID cho booking
+        
+        # Tạo booking item
         booking_item = BookingItem(
-            booking_id=booking.id,
-            service_id=service_uuid,  # Đã được validate ở trên
-            quantity=1,
-            unit_price=unit_price,  # Dùng giá thực tế từ service
-            subtotal=subtotal  # Đổi từ total_price thành subtotal
+            booking_id=new_booking.id,
+            service_id=service.id,
+            quantity=quantity,
+            unit_price=unit_price,
+            subtotal=subtotal,
+            notes=data.get('service_notes', '')
         )
         
         db.session.add(booking_item)
-        db.session.commit()
-        
-        return jsonify({
+        db.session.flush()
+
+        # Chuẩn bị response data
+        response_data = {
             'status': 'success',
-            'message': 'Đặt lịch thành công! Chúng tôi sẽ liên hệ với bạn sớm nhất.',
-            'booking': booking.to_dict()
-        }), 201
+            'message': 'Tạo booking thành công',
+            'booking': new_booking.to_dict()
+        }
+
+        # Nếu thanh toán VNPay, tạo URL thanh toán
+        if payment_method == 'vnpay':
+            from .vnpay import generate_vnpay_payment_url
+            payment_url = generate_vnpay_payment_url(new_booking, request)
+            
+            if payment_url:
+                # Cập nhật trạng thái pending khi có URL thanh toán
+                new_booking.payment_status = 'pending'
+                response_data['payment_url'] = payment_url
+                response_data['message'] = 'Tạo booking và URL thanh toán VNPay thành công'
+            else:
+                db.session.rollback()
+                return jsonify({
+                    'status': 'error', 
+                    'message': 'Lỗi khi tạo URL thanh toán VNPay'
+                }), 500
+
+        db.session.commit()
+        return jsonify(response_data), 201
         
-    except ValueError as e:
-        db.session.rollback()
-        return jsonify({
-            'status': 'error',
-            'message': f'Dữ liệu không hợp lệ: {str(e)}'
-        }), 400
     except Exception as e:
         db.session.rollback()
-        # Log chi tiết lỗi để debug
-        print(f"Lỗi tạo booking: {str(e)}")
-        import traceback
-        traceback.print_exc()
+        print(f"❌ Lỗi tạo booking: {str(e)}")  # Debug log
         return jsonify({
             'status': 'error',
             'message': f'Lỗi khi tạo booking: {str(e)}'
@@ -273,5 +270,127 @@ def cancel_booking(booking_id):
         return jsonify({
             'status': 'error',
             'message': f'Lỗi khi hủy booking: {str(e)}'
+        }), 500
+
+@bookings_bp.route('/<booking_id>/payment/vnpay', methods=['POST'])
+@jwt_required()
+def create_vnpay_payment(booking_id):
+    """
+    Tạo URL thanh toán VNPay cho booking đã tồn tại
+    Cho phép khách hàng thanh toán lại nếu thanh toán trước đó thất bại
+    """
+    try:
+        current_user_id = get_jwt_identity()
+        
+        # Tìm booking và kiểm tra quyền
+        booking = Booking.query.filter_by(
+            id=booking_id,
+            user_id=current_user_id
+        ).first()
+        
+        if not booking:
+            return jsonify({
+                'status': 'error',
+                'message': 'Không tìm thấy booking hoặc bạn không có quyền truy cập'
+            }), 404
+        
+        # Kiểm tra trạng thái booking
+        if booking.status in ['completed', 'cancelled']:
+            return jsonify({
+                'status': 'error',
+                'message': 'Không thể thanh toán cho booking đã hoàn thành hoặc đã hủy'
+            }), 400
+            
+        # Kiểm tra trạng thái thanh toán
+        if booking.payment_status == 'paid':
+            return jsonify({
+                'status': 'error',
+                'message': 'Booking này đã được thanh toán thành công'
+            }), 400
+        
+        # Cho phép thanh toán lại nếu trạng thái là 'unpaid' hoặc 'failed'
+        if booking.payment_status not in ['unpaid', 'failed']:
+            return jsonify({
+                'status': 'error',
+                'message': f'Không thể thanh toán cho booking có trạng thái: {booking.payment_status}'
+            }), 400
+        
+        # Cập nhật phương thức thanh toán và trạng thái
+        booking.payment_method = 'vnpay'
+        booking.payment_status = 'pending'
+        
+        # Tạo URL thanh toán VNPay
+        from .vnpay import generate_vnpay_payment_url
+        payment_url = generate_vnpay_payment_url(booking, request)
+        
+        if payment_url:
+            db.session.commit()
+            return jsonify({
+                'status': 'success',
+                'payment_url': payment_url,
+                'booking_code': booking.booking_code,
+                'amount': float(booking.total_price),
+                'message': 'Tạo URL thanh toán VNPay thành công'
+            })
+        else:
+            db.session.rollback()
+            # Trả lại trạng thái cũ nếu tạo URL thất bại
+            booking.payment_status = 'unpaid'
+            return jsonify({
+                'status': 'error',
+                'message': 'Lỗi khi tạo URL thanh toán VNPay, vui lòng thử lại sau'
+            }), 500
+            
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'status': 'error',
+            'message': f'Lỗi hệ thống: {str(e)}'
+        }), 500
+
+@bookings_bp.route('/<booking_id>/payment/status', methods=['GET'])
+@jwt_required()
+def get_payment_status(booking_id):
+    """
+    Lấy trạng thái thanh toán của booking
+    Bao gồm thông tin giao dịch VNPay nếu có
+    """
+    try:
+        current_user_id = get_jwt_identity()
+        
+        # Tìm booking và kiểm tra quyền
+        booking = Booking.query.filter_by(
+            id=booking_id,
+            user_id=current_user_id
+        ).first()
+        
+        if not booking:
+            return jsonify({
+                'status': 'error',
+                'message': 'Không tìm thấy booking hoặc bạn không có quyền truy cập'
+            }), 404
+        
+        response_data = {
+            'status': 'success',
+            'booking_code': booking.booking_code,
+            'payment_status': booking.payment_status,
+            'payment_method': booking.payment_method,
+            'total_amount': float(booking.total_price),
+            'vnpay_transaction': None
+        }
+        
+        # Lấy thông tin giao dịch VNPay nếu có
+        if booking.payment_method == 'vnpay':
+            from ..models.vnpay import VnpayTransaction
+            transaction = VnpayTransaction.query.filter_by(booking_id=booking_id).first()
+            if transaction:
+                response_data['vnpay_transaction'] = transaction.to_dict()
+        
+        return jsonify(response_data)
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Lỗi khi lấy trạng thái thanh toán: {str(e)}'
         }), 500
 

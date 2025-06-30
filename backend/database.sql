@@ -236,40 +236,6 @@ CREATE TABLE staff_schedules (
   FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE SET NULL
 );
 
--- Bảng phương thức thanh toán của người dùng
-CREATE TABLE payment_methods (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL,
-  method_type payment_method NOT NULL,
-  provider VARCHAR(100),
-  account_number VARCHAR(50),
-  account_name VARCHAR(100),
-  expiry_date VARCHAR(10),
-  is_default BOOLEAN DEFAULT FALSE,
-  last_used_at TIMESTAMP WITH TIME ZONE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
-
--- Tạo bảng payments (thanh toán)
-CREATE TABLE payments (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  booking_id UUID NOT NULL,
-  amount DECIMAL(10, 2) NOT NULL,
-  payment_method payment_method NOT NULL,
-  transaction_id VARCHAR(100),
-  provider_response TEXT,
-  status transaction_status DEFAULT 'pending',
-  payment_date TIMESTAMP WITH TIME ZONE,
-  refund_amount DECIMAL(10, 2),
-  refund_date TIMESTAMP WITH TIME ZONE,
-  refund_reason TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE
-);
-
 -- Bảng cài đặt thông báo
 CREATE TABLE notification_settings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -313,21 +279,7 @@ CREATE TABLE user_activity_logs (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
--- Bảng lưu nhật ký giao dịch
-CREATE TABLE transaction_logs (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID,
-  booking_id UUID,
-  payment_id UUID,
-  amount DECIMAL(10, 2) NOT NULL,
-  transaction_type VARCHAR(50) NOT NULL,
-  status transaction_status NOT NULL,
-  description TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
-  FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE SET NULL,
-  FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE SET NULL
-);
+
 
 -- Tạo bảng settings (cài đặt hệ thống)
 CREATE TABLE settings (
@@ -337,6 +289,27 @@ CREATE TABLE settings (
   data_type VARCHAR(20) DEFAULT 'string',
   description TEXT,
   is_public BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Tạo bảng vnpay_transactions để lưu trữ thông tin giao dịch VNPAY
+CREATE TABLE vnpay_transactions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  booking_id UUID REFERENCES bookings(id) ON DELETE SET NULL,
+  user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  vnp_Amount DECIMAL(15, 2) NOT NULL,
+  vnp_BankCode VARCHAR(50),
+  vnp_BankTranNo VARCHAR(255),
+  vnp_CardType VARCHAR(50),
+  vnp_OrderInfo VARCHAR(255),
+  vnp_PayDate VARCHAR(20),
+  vnp_ResponseCode VARCHAR(2),
+  vnp_TmnCode VARCHAR(20),
+  vnp_TransactionNo VARCHAR(255),
+  vnp_TransactionStatus VARCHAR(2),
+  vnp_TxnRef VARCHAR(255) NOT NULL UNIQUE,
+  vnp_SecureHash VARCHAR(255),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -490,81 +463,8 @@ AFTER UPDATE OF status ON payments
 FOR EACH ROW
 EXECUTE FUNCTION update_payment_status();
 
--- Bảng staff (nhân viên) - Riêng biệt với users
-CREATE TABLE staff (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID UNIQUE REFERENCES users(id) ON DELETE CASCADE,
-  employee_code VARCHAR(20) UNIQUE NOT NULL,
-  hire_date DATE NOT NULL,
-  department VARCHAR(100),
-  position VARCHAR(100),
-  salary DECIMAL(12, 2),
-  commission_rate DECIMAL(5, 2) DEFAULT 0,
-  working_hours JSONB, -- {"monday": "08:00-17:00", "tuesday": "08:00-17:00", ...}
-  skills JSONB, -- ["cleaning", "deep_cleaning", "carpet_cleaning", ...]
-  certifications JSONB, -- [{"name": "Professional Cleaning", "date": "2025-01-01", "expiry": "2026-01-01"}]
-  rating DECIMAL(3, 2) DEFAULT 0,
-  total_bookings INTEGER DEFAULT 0,
-  completed_bookings INTEGER DEFAULT 0,
-  cancelled_bookings INTEGER DEFAULT 0,
-  total_earnings DECIMAL(12, 2) DEFAULT 0,
-  notes TEXT,
-  emergency_contact_name VARCHAR(100),
-  emergency_contact_phone VARCHAR(20),
-  bank_account VARCHAR(50),
-  bank_name VARCHAR(100),
-  tax_code VARCHAR(20),
-  status user_status DEFAULT 'active',
-  terminated_at TIMESTAMP WITH TIME ZONE,
-  termination_reason TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- Index cho bảng staff
-CREATE INDEX idx_staff_user_id ON staff(user_id);
-CREATE INDEX idx_staff_employee_code ON staff(employee_code);
-CREATE INDEX idx_staff_status ON staff(status);
-CREATE INDEX idx_staff_hire_date ON staff(hire_date);
-
--- Bảng staff_availability (lịch làm việc của nhân viên)
-CREATE TABLE staff_availability (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  staff_id UUID NOT NULL REFERENCES staff(id) ON DELETE CASCADE,
-  date DATE NOT NULL,
-  start_time TIME NOT NULL,
-  end_time TIME NOT NULL,
-  status schedule_status DEFAULT 'available',
-  booking_id UUID REFERENCES bookings(id) ON DELETE SET NULL,
-  notes TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE(staff_id, date, start_time)
-);
-
--- Index cho bảng staff_availability
-CREATE INDEX idx_staff_availability_staff_id ON staff_availability(staff_id);
-CREATE INDEX idx_staff_availability_date ON staff_availability(date);
-CREATE INDEX idx_staff_availability_status ON staff_availability(status);
-
--- Bảng staff_skills (kỹ năng của nhân viên)
-CREATE TABLE staff_skills (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  staff_id UUID NOT NULL REFERENCES staff(id) ON DELETE CASCADE,
-  service_id UUID NOT NULL REFERENCES services(id) ON DELETE CASCADE,
-  skill_level INTEGER CHECK (skill_level >= 1 AND skill_level <= 5) DEFAULT 3,
-  certified BOOLEAN DEFAULT FALSE,
-  certification_date DATE,
-  certification_expiry DATE,
-  notes TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE(staff_id, service_id)
-);
-
--- Index cho bảng staff_skills
-CREATE INDEX idx_staff_skills_staff_id ON staff_skills(staff_id);
-CREATE INDEX idx_staff_skills_service_id ON staff_skills(service_id);
+-- Xóa các bảng không sử dụng: staff, staff_availability, staff_skills, staff_schedules
+-- Các bảng này không cần thiết cho hệ thống hiện tại
 
 -- Chèn dữ liệu mẫu
 INSERT INTO users (id, name, email, password, phone, role, status) VALUES
@@ -747,25 +647,12 @@ INSERT INTO service_areas (service_id, area_id) VALUES
 ('550e8400-e29b-41d4-a716-446655440054', '550e8400-e29b-41d4-a716-446655440046'),
 ('550e8400-e29b-41d4-a716-446655440054', '550e8400-e29b-41d4-a716-446655440047');
 
--- Tạo lịch trình cho nhân viên
-INSERT INTO staff_schedules (staff_id, date, start_time, end_time, status) VALUES
-('550e8400-e29b-41d4-a716-446655440001', '2023-06-01', '08:00:00', '17:00:00', 'available'),
-('550e8400-e29b-41d4-a716-446655440001', '2023-06-02', '08:00:00', '17:00:00', 'available'),
-('550e8400-e29b-41d4-a716-446655440001', '2023-06-03', '08:00:00', '17:00:00', 'available'),
-('550e8400-e29b-41d4-a716-446655440002', '2023-06-01', '08:00:00', '17:00:00', 'available'),
-('550e8400-e29b-41d4-a716-446655440002', '2023-06-02', '08:00:00', '17:00:00', 'available'),
-('550e8400-e29b-41d4-a716-446655440002', '2023-06-03', '08:00:00', '17:00:00', 'off');
 
 INSERT INTO promotions (id, code, name, description, discount_type, discount_value, min_order_value, max_discount, start_date, end_date, usage_limit, status) VALUES
 ('550e8400-e29b-41d4-a716-446655440017', 'WELCOME10', 'Chào mừng khách hàng mới', 'Giảm 10% cho khách hàng lần đầu sử dụng dịch vụ', 'percentage', 10, 0, 100000, '2023-01-01', '2023-12-31', 100, 'active'),
 ('550e8400-e29b-41d4-a716-446655440018', 'SUMMER25', 'Khuyến mãi hè', 'Giảm 25% cho dịch vụ vệ sinh nhà cửa', 'percentage', 25, 500000, 200000, '2023-06-01', '2023-08-31', 50, 'active'),
 ('550e8400-e29b-41d4-a716-446655440019', 'FIXED100K', 'Giảm 100K', 'Giảm trực tiếp 100K cho hóa đơn từ 500K', 'fixed', 100000, 500000, 100000, '2023-01-01', '2023-12-31', 200, 'active');
 
--- Tạo đơn đặt lịch mẫu
-INSERT INTO bookings (id, booking_code, user_id, address_id, staff_id, booking_date, booking_time, end_time, status, subtotal, discount, total_price, payment_status, payment_method, notes, customer_address) VALUES
-('550e8400-e29b-41d4-a716-446655440050', 'BK-2023060001', '550e8400-e29b-41d4-a716-446655440003', '550e8400-e29b-41d4-a716-446655440030', '550e8400-e29b-41d4-a716-446655440001', '2023-06-01', '09:00:00', '11:00:00', 'completed', 300000, 0, 300000, 'paid', 'cash', 'Cần vệ sinh kỹ phòng khách', '123 Đường Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh'),
-('550e8400-e29b-41d4-a716-446655440051', 'BK-2023060002', '550e8400-e29b-41d4-a716-446655440004', '550e8400-e29b-41d4-a716-446655440032', '550e8400-e29b-41d4-a716-446655440002', '2023-06-02', '14:00:00', '17:00:00', 'confirmed', 500000, 0, 500000, 'unpaid', 'bank_transfer', 'Cần mang theo dụng cụ vệ sinh chuyên dụng', '789 Đường Cách Mạng Tháng 8, Quận 3, TP. Hồ Chí Minh'),
-('550e8400-e29b-41d4-a716-446655440052', 'BK-2023060003', '550e8400-e29b-41d4-a716-446655440003', '550e8400-e29b-41d4-a716-446655440031', NULL, '2023-06-05', '10:00:00', '13:00:00', 'pending', 600000, 100000, 500000, 'unpaid', NULL, 'Vệ sinh văn phòng sau giờ làm việc', '456 Đường Lê Lợi, Quận 1, TP. Hồ Chí Minh');
 
 -- Chi tiết đơn đặt lịch
 INSERT INTO booking_items (booking_id, service_id, quantity, unit_price, subtotal) VALUES
@@ -777,10 +664,6 @@ INSERT INTO booking_items (booking_id, service_id, quantity, unit_price, subtota
 INSERT INTO booking_promotions (booking_id, promotion_id, discount_amount) VALUES
 ('550e8400-e29b-41d4-a716-446655440052', '550e8400-e29b-41d4-a716-446655440019', 100000);
 
--- Thêm thanh toán mẫu
-INSERT INTO payments (id, booking_id, amount, payment_method, transaction_id, status, payment_date) VALUES
-('550e8400-e29b-41d4-a716-446655440060', '550e8400-e29b-41d4-a716-446655440050', 300000, 'cash', NULL, 'completed', '2023-06-01 11:30:00'),
-('550e8400-e29b-41d4-a716-446655440061', '550e8400-e29b-41d4-a716-446655440051', 500000, 'bank_transfer', 'TRX123456789', 'pending', NULL);
 
 -- Thêm đánh giá mẫu
 INSERT INTO reviews (booking_id, user_id, service_id, staff_id, rating, title, comment, status) VALUES
@@ -845,3 +728,13 @@ CREATE INDEX idx_notifications_user ON notifications (user_id);
 CREATE INDEX idx_notifications_read ON notifications (is_read);
 CREATE INDEX idx_user_activity_logs_user ON user_activity_logs (user_id);
 CREATE INDEX idx_user_activity_logs_type ON user_activity_logs (activity_type);
+
+
+
+-- Index cho bảng vnpay_transactions
+CREATE INDEX idx_vnpay_transactions_booking_id ON vnpay_transactions(booking_id);
+CREATE INDEX idx_vnpay_transactions_user_id ON vnpay_transactions(user_id);
+CREATE INDEX idx_vnpay_transactions_txn_ref ON vnpay_transactions(vnp_TxnRef);
+
+-- Thêm trigger để tự động cập nhật updated_at cho vnpay_transactions
+CREATE TRIGGER update_vnpay_transactions_timestamp BEFORE UPDATE ON vnpay_transactions FOR EACH ROW EXECUTE FUNCTION update_timestamp();

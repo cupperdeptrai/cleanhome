@@ -18,6 +18,9 @@ import Bookings from './pages/Bookings';
 import Profile from './pages/Profile';
 import Security from './pages/Security';
 import Support from './pages/Support';
+import PaymentSuccess from './pages/PaymentSuccess';
+import PaymentFailure from './pages/PaymentFailure';
+import PaymentResultPage from './pages/PaymentResultPage';
 
 
 // Admin Pages
@@ -75,6 +78,11 @@ const App: React.FC = () => {
       <Route path="/forgot-password" element={<MainLayout><ForgotPassword /></MainLayout>} />
       <Route path="/services" element={<MainLayout><Services /></MainLayout>} />
       <Route path="/support" element={<MainLayout><Support /></MainLayout>} />
+      
+      {/* Payment Result Routes - Public để VNPay có thể redirect */}
+      <Route path="/payment/success" element={<PaymentSuccess />} />
+      <Route path="/payment/failure" element={<PaymentFailure />} />
+      <Route path="/payment/result" element={<PaymentResultPage />} />
       
       
       {/* Protected User Routes */}

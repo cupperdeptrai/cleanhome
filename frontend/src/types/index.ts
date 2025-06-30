@@ -39,12 +39,35 @@ export interface Booking {
   totalAmount?: number; // Tổng tiền
   subtotal?: number; // Tiền dịch vụ
   discountAmount?: number; // Tiền giảm giá
-  paymentStatus?: 'paid' | 'unpaid' | 'refunded';
+  paymentStatus?: 'paid' | 'unpaid' | 'refunded' | 'failed' | 'pending';
   paymentMethod?: 'cash' | 'bank_transfer' | 'momo' | 'zalopay' | 'vnpay';
   createdAt?: string;
   updatedAt?: string;
   // Giữ lại các field cũ để tương thích
   price?: number;
+}
+
+/**
+ * Kiểu dữ liệu cho việc cập nhật đơn đặt lịch
+ */
+export interface UpdateBookingDTO {
+  status?: 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
+  date?: string;
+  time?: string;
+  notes?: string;
+  address?: string;
+  staffId?: string;
+}
+
+/**
+ * Kiểu dữ liệu cho tham số lọc danh sách đơn đặt lịch
+ */
+export interface BookingFilterParams {
+  userId?: string;
+  serviceId?: string;
+  status?: 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'all';
+  fromDate?: string;
+  toDate?: string;
 }
 
 // Kiểu dữ liệu cho khuyến mãi
@@ -135,4 +158,33 @@ export interface Activity {
   type: string; // e.g., 'booking', 'profile_update', 'password_change', 'login'
   description: string;
   createdAt: string; // ISO date string, e.g., '2023-07-10T08:30:00Z'
+}
+
+/**
+ * Kiểu dữ liệu cho việc tạo mới đơn đặt lịch
+ * Gửi lên API backend
+ */
+export interface CreateBookingData {
+  service_id: string;
+  booking_date: string;
+  booking_time: string;
+  customer_address: string;
+  area?: number; // Diện tích (m2) - tuỳ chọn
+  quantity?: number; // Số lượng dịch vụ - mặc định là 1
+  notes?: string;
+  service_notes?: string; // Ghi chú cho service riêng biệt
+  payment_method: 'cash' | 'vnpay' | 'bank_transfer' | 'credit_card' | 'momo' | 'zalopay';
+  discount?: number; // Giảm giá - mặc định là 0
+  tax?: number; // Thuế - mặc định là 0
+}
+
+/**
+ * Kiểu dữ liệu cho phản hồi từ API khi tạo booking
+ * Có thể chứa payment_url nếu thanh toán qua VNPAY
+ */
+export interface BookingCreationResponse {
+  status: string;
+  message: string;
+  booking: Booking;
+  payment_url?: string; // URL thanh toán VNPAY nếu có
 }

@@ -7,6 +7,7 @@ import Button from '../components/UI/Button';
 import AddressSelector, { AddressValue } from '../components/forms/AddressSelector';
 import BookingService from '../services/booking.service';
 import { formatFullAddress, getAddressNames } from '../data/vietnamAddress';
+import { CreateBookingData, BookingCreationResponse } from '../types'; // Import các kiểu dữ liệu mới
 
 /**
  * Component trang đặt lịch dịch vụ
@@ -27,6 +28,7 @@ const BookingForm = () => {
   const [selectedService, setSelectedService] = useState<string>(serviceIdFromUrl || '');
   const [date, setDate] = useState<string>('');
   const [time, setTime] = useState<string>('');
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'vnpay'>('cash'); // Thêm state cho phương thức thanh toán
   const [address, setAddress] = useState<AddressValue>({
     city: '',
     district: '',
@@ -45,7 +47,6 @@ const BookingForm = () => {
     address?: string;
   }>({});
   const [bookingSuccess, setBookingSuccess] = useState<boolean>(false);
-  const [showPaymentModal, setShowPaymentModal] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   
   // Lấy thông tin dịch vụ đã chọn
@@ -114,30 +115,19 @@ const BookingForm = () => {
   };
   
   /**
-   * Hàm xử lý submit form - bước đầu tiên
-   * Validate dữ liệu và hiển thị modal chọn phương thức thanh toán
+   * Hàm xử lý submit form để tạo booking
+   * Validate dữ liệu, gọi API và xử lý kết quả (chuyển hướng VNPAY hoặc báo thành công)
    */
-
-  // Xử lý đặt lịch - bước đầu tiên: hiển thị modal thanh toán
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     
-    if (validateForm()) {
-      // Hiển thị modal chọn phương thức thanh toán
-      setShowPaymentModal(true);
+    if (!validateForm()) {
+      return;
     }
-  };
 
-  /**
-   * Hàm xử lý xác nhận thanh toán và tạo booking
-   * Gọi API để tạo booking mới với thông tin đã nhập
-   * @param paymentMethod - Phương thức thanh toán được chọn (chỉ 'cash')
-   */
-  const handlePaymentConfirm = async (paymentMethod: string) => {
+    setIsSubmitting(true);
+
     try {
-      setIsSubmitting(true);
-      setShowPaymentModal(false);
-      
       // Kiểm tra token trước khi gửi request
       const token = localStorage.getItem('token');
       if (!token) {
@@ -148,19 +138,16 @@ const BookingForm = () => {
       
       console.log('💳 Đang tạo booking với phương thức thanh toán:', paymentMethod);
       
-      // Lấy thông tin dịch vụ đã chọn để tính duration
+      // Lấy thông tin dịch vụ đã chọn
       const selectedServiceInfo = activeServices.find(s => s.id === selectedService);
-      const serviceDuration = selectedServiceInfo ? (selectedServiceInfo.duration || 120) / 60 : 2; // Chuyển từ phút sang giờ
       
       // Tạo chuỗi địa chỉ từ object địa chỉ theo định dạng chuẩn
-      // Lấy tên thực tế từ ID
       const { cityName, districtName, wardName } = getAddressNames(
         address.city, 
         address.district, 
         address.ward
       );
       
-      // Sử dụng hàm formatFullAddress để tạo địa chỉ chuẩn
       const fullAddress = formatFullAddress(
         address.houseNumber,
         address.street,
@@ -172,38 +159,41 @@ const BookingForm = () => {
         address.specificAddress
       );
       
-      // Dữ liệu booking để gửi lên API
-      const bookingData = {
+      // Dữ liệu booking để gửi lên API, sử dụng kiểu CreateBookingData
+      const bookingData: CreateBookingData = {
         service_id: selectedService,
         booking_date: date,
         booking_time: time,
-        duration: serviceDuration, // Sử dụng duration từ selectedService (theo giờ)
-        customer_address: fullAddress, // Chuyển object thành string
-        phone: user?.phone || '', // Lấy số điện thoại từ thông tin user
+        customer_address: fullAddress,
+        area: 0, // Diện tích sẽ được cập nhật từ form input nếu có
+        quantity: 1, // Mặc định 1 đơn vị dịch vụ
         notes: notes,
-        payment_method: 'cash' as const // Chỉ hỗ trợ thanh toán tiền mặt
+        payment_method: paymentMethod
       };
       
-      console.log('� Selected Service ID:', selectedService);
+      console.log('🚢 Selected Service ID:', selectedService);
       console.log('🔍 Selected Service Details:', selectedServiceInfo);
-      console.log('�📋 Dữ liệu booking:', bookingData);
+      console.log('📋 Dữ liệu booking:', bookingData);
       
-      // Gọi API tạo booking
-      const result = await BookingService.createBooking(bookingData);
+      // Gọi API tạo booking, kết quả có thể chứa payment_url
+      const result: BookingCreationResponse = await BookingService.createBooking(bookingData);
       
       console.log('✅ Tạo booking thành công:', result);
       
+      // Nếu thanh toán bằng VNPAY và có payment_url, chuyển hướng người dùng
+      if (paymentMethod === 'vnpay' && result.payment_url) {
+        console.log('💳 Chuyển hướng đến VNPAY...');
+        window.location.href = result.payment_url;
+        return; // Dừng thực thi để trình duyệt chuyển hướng
+      }
+
       // Thanh toán tiền mặt - hoàn tất đặt lịch
-      
-      // Emit custom event để thông báo có booking mới
       window.dispatchEvent(new CustomEvent('newBookingCreated', { 
         detail: { booking: result } 
       }));
       
-      // Hiển thị thành công và chuyển hướng
       setBookingSuccess(true);
       
-      // Chuyển hướng đến trang đơn hàng sau 3 giây với parameter refresh
       setTimeout(() => {
         navigate('/bookings?refresh=true');
       }, 3000);
@@ -211,7 +201,6 @@ const BookingForm = () => {
     } catch (error) {
       console.error('❌ Lỗi khi tạo booking:', error);
       
-      // Xử lý lỗi token expired
       if (error && typeof error === 'object' && 'response' in error) {
         const axiosError = error as { response?: { status?: number; data?: { message?: string; error?: string } } };
         
@@ -278,7 +267,7 @@ const BookingForm = () => {
                 <h3 className="mt-3 text-lg font-medium text-gray-900">Đặt lịch thành công!</h3>
                 <p className="mt-2 text-sm text-gray-500">
                   Cảm ơn bạn đã sử dụng dịch vụ của chúng tôi. Đơn đặt lịch của bạn đã được ghi nhận.
-                  Chúng tôi sẽ liên hệ để xác nhận trong thời gian sớm nhất.
+                  {paymentMethod === 'cash' && ' Chúng tôi sẽ liên hệ để xác nhận trong thời gian sớm nhất.'}
                 </p>
                 <p className="mt-1 text-sm text-gray-500">
                   Bạn sẽ được chuyển đến trang quản lý đơn hàng sau 3 giây.
@@ -298,122 +287,118 @@ const BookingForm = () => {
                 <Card className="p-6">
                   <form onSubmit={handleSubmit} className="space-y-6">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Chọn dịch vụ
-                      </label>
+                      <label htmlFor="service" className="block text-sm font-medium text-gray-700">Chọn dịch vụ</label>
                       <select
+                        id="service"
+                        name="service"
                         value={selectedService}
                         onChange={(e) => setSelectedService(e.target.value)}
-                        aria-label="Chọn dịch vụ"
-                        className={`mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md ${
-                          formErrors.service ? 'border-red-300' : ''
-                        }`}
-                        disabled={activeServices.length === 0}
+                        className={`mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md ${formErrors.service ? 'border-red-500' : ''}`}
                       >
-                        <option value="">
-                          {activeServices.length === 0 ? '-- Hiện tại không có dịch vụ nào --' : '-- Chọn dịch vụ --'}
-                        </option>
-                        {activeServices.map((service) => (
+                        <option value="">-- Chọn một dịch vụ --</option>
+                        {activeServices.map(service => (
                           <option key={service.id} value={service.id}>
-                            {service.name} - {formatPrice(service.price)} - {service.duration ? `${service.duration}p` : '120p'}
+                            {service.name} - {formatPrice(service.price)}
                           </option>
                         ))}
                       </select>
-                      {formErrors.service && (
-                        <p className="mt-1 text-sm text-red-600">{formErrors.service}</p>
-                      )}
+                      {formErrors.service && <p className="mt-2 text-sm text-red-600">{formErrors.service}</p>}
                     </div>
-                    
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Chọn ngày
-                        </label>
+                        <label htmlFor="date" className="block text-sm font-medium text-gray-700">Chọn ngày</label>
                         <select
+                          id="date"
+                          name="date"
                           value={date}
                           onChange={(e) => setDate(e.target.value)}
-                          aria-label="Chọn ngày"
-                          className={`mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md ${
-                            formErrors.date ? 'border-red-300' : ''
-                          }`}
+                          className={`mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md ${formErrors.date ? 'border-red-500' : ''}`}
                         >
                           <option value="">-- Chọn ngày --</option>
-                          {availableDates.map((date) => {
-                            // Format ngày cho hiển thị với múi giờ Việt Nam
-                            const dateObj = new Date(date + 'T00:00:00');
-                            const formattedDate = dateObj.toLocaleDateString('vi-VN', {
-                              weekday: 'long',
-                              year: 'numeric',
-                              month: 'long',
-                              day: 'numeric',
-                              timeZone: 'Asia/Ho_Chi_Minh'
-                            });
-                            
-                            return (
-                              <option key={date} value={date}>
-                                {formattedDate}
-                              </option>
-                            );
-                          })}
-                        </select>
-                        {formErrors.date && (
-                          <p className="mt-1 text-sm text-red-600">{formErrors.date}</p>
-                        )}
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Chọn giờ
-                        </label>
-                        <select
-                          value={time}
-                          onChange={(e) => setTime(e.target.value)}
-                          aria-label="Chọn giờ"
-                          className={`mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md ${
-                            formErrors.time ? 'border-red-300' : ''
-                          }`}
-                        >
-                          <option value="">-- Chọn giờ --</option>
-                          {availableTimeSlots.map((timeSlot) => (
-                            <option key={timeSlot} value={timeSlot}>
-                              {timeSlot}
-                            </option>
+                          {availableDates.map(d => (
+                            <option key={d} value={d}>{d}</option>
                           ))}
                         </select>
-                        {formErrors.time && (
-                          <p className="mt-1 text-sm text-red-600">{formErrors.time}</p>
-                        )}
+                        {formErrors.date && <p className="mt-2 text-sm text-red-600">{formErrors.date}</p>}
+                      </div>
+                      <div>
+                        <label htmlFor="time" className="block text-sm font-medium text-gray-700">Chọn giờ</label>
+                        <select
+                          id="time"
+                          name="time"
+                          value={time}
+                          onChange={(e) => setTime(e.target.value)}
+                          className={`mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md ${formErrors.time ? 'border-red-500' : ''}`}
+                        >
+                          <option value="">-- Chọn giờ --</option>
+                          {availableTimeSlots.map(slot => (
+                            <option key={slot} value={slot}>{slot}</option>
+                          ))}
+                        </select>
+                        {formErrors.time && <p className="mt-2 text-sm text-red-600">{formErrors.time}</p>}
                       </div>
                     </div>
-                    
+
                     <div>
-                      <AddressSelector
-                        value={address}
-                        onChange={(newAddress) => setAddress(newAddress)}
-                        error={formErrors.address}
-                      />
+                      <label className="block text-sm font-medium text-gray-700">Địa chỉ</label>
+                      <AddressSelector value={address} onChange={setAddress} />
+                      {formErrors.address && <p className="mt-2 text-sm text-red-600">{formErrors.address}</p>}
                     </div>
-                    
+
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Ghi chú
-                      </label>
+                      <label htmlFor="notes" className="block text-sm font-medium text-gray-700">Ghi chú</label>
                       <textarea
+                        id="notes"
+                        name="notes"
+                        rows={3}
                         value={notes}
                         onChange={(e) => setNotes(e.target.value)}
-                        rows={4}
-                        className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm "
-                        placeholder="Thông tin thêm về yêu cầu của bạn..."
-                      />
+                        className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                        placeholder="Ví dụ: Nhà có chó nhỏ, vui lòng gọi trước khi đến."
+                      ></textarea>
                     </div>
-                    
-                    <div>
-                      <Button 
-                        type="submit" 
-                        fullwidth
-                        disabled={isSubmitting}
-                      >
-                        {isSubmitting ? 'Đang xử lý...' : 'Đặt lịch'}
+
+                    <div className="border-t border-gray-200 pt-6">
+                      <h3 className="text-lg font-medium text-gray-900">Phương thức thanh toán</h3>
+                      <fieldset className="mt-4">
+                        <legend className="sr-only">Payment method</legend>
+                        <div className="space-y-4 sm:flex sm:items-center sm:space-y-0 sm:space-x-10">
+                          <div className="flex items-center">
+                            <input
+                              id="cash"
+                              name="payment-method"
+                              type="radio"
+                              value="cash"
+                              checked={paymentMethod === 'cash'}
+                              onChange={() => setPaymentMethod('cash')}
+                              className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300"
+                            />
+                            <label htmlFor="cash" className="ml-3 block text-sm font-medium text-gray-700">
+                              Thanh toán tiền mặt
+                            </label>
+                          </div>
+                          <div className="flex items-center">
+                            <input
+                              id="vnpay"
+                              name="payment-method"
+                              type="radio"
+                              value="vnpay"
+                              checked={paymentMethod === 'vnpay'}
+                              onChange={() => setPaymentMethod('vnpay')}
+                              className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300"
+                            />
+                            <label htmlFor="vnpay" className="ml-3 block text-sm font-medium text-gray-700">
+                              Thanh toán VNPAY
+                            </label>
+                          </div>
+                        </div>
+                      </fieldset>
+                    </div>
+
+                    <div className="pt-6">
+                      <Button type="submit" className="w-full" disabled={isSubmitting}>
+                        {isSubmitting ? 'Đang xử lý...' : `Đặt lịch ngay - ${formatPrice(totalPrice)}`}
                       </Button>
                     </div>
                   </form>
@@ -483,36 +468,6 @@ const BookingForm = () => {
           )}
         </div>
       </div>
-      
-      {/* Modal xác nhận đặt lịch */}
-      {showPaymentModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-bold mb-4">Xác nhận đặt lịch</h3>
-            <p className="text-gray-600 mb-4">
-              Tổng tiền: <span className="font-bold text-green-600">{totalPrice?.toLocaleString()}đ</span>
-            </p>
-            <p className="text-sm text-gray-500 mb-6">
-              Thanh toán bằng tiền mặt khi dịch vụ hoàn thành
-            </p>
-            <div className="flex gap-3">
-              <Button
-                variant="outline"
-                onClick={() => setShowPaymentModal(false)}
-                className="flex-1"
-              >
-                Hủy
-              </Button>
-              <Button
-                onClick={() => handlePaymentConfirm('cash')}
-                className="flex-1"
-              >
-                Xác nhận đặt lịch
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 };

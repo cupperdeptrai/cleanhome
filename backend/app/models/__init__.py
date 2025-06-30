@@ -9,6 +9,7 @@ from .promotion import Promotion
 from .notification import Notification, NotificationSetting
 from .setting import Setting
 from .activity import UserActivityLog
+from .vnpay import VnpayTransaction
 
 __all__ = [
     'User', 'UserAddress',
@@ -18,6 +19,7 @@ __all__ = [
     # 'Payment',
     'Notification', 'NotificationSetting',
     'Setting',
-    'UserActivityLog'
+    'UserActivityLog',
+    'VnpayTransaction'
 ]
 

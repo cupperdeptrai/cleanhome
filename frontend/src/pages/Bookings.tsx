@@ -6,6 +6,7 @@ import Button from '../components/UI/Button';
 import BookingCard from '../components/UI/BookingCard';
 import { Booking } from '../types'; // Import từ types thay vì service
 import BookingService from '../services/booking.service';
+import { createPaymentUrl, retryPayment } from '../services/payment.service'; // Import các hàm thanh toán
 
 /**
  * Component trang "Lịch đã đặt"
@@ -20,7 +21,58 @@ const Bookings = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'confirmed' | 'completed' | 'cancelled'>('all');
-  
+  const [paying, setPaying] = useState<string | null>(null); // State để theo dõi booking đang thanh toán
+  const [retrying, setRetrying] = useState<string | null>(null); // State để theo dõi booking đang thử lại thanh toán
+
+  /**
+   * Hàm xử lý thanh toán qua VNPAY
+   * @param bookingId ID của booking cần thanh toán
+   */
+  const handlePayment = async (bookingId: string) => {
+    setPaying(bookingId); // Bắt đầu quá trình thanh toán
+    try {
+      console.log(`🚀 Bắt đầu quá trình thanh toán cho booking ID: ${bookingId}`);
+      const data = await createPaymentUrl(bookingId);
+      if (data.payment_url) {
+        console.log(`💳 Nhận được URL thanh toán, đang chuyển hướng...`);
+        // Chuyển hướng người dùng đến cổng thanh toán VNPAY
+        window.location.href = data.payment_url;
+      } else {
+        console.error('❌ Không nhận được URL thanh toán từ server');
+        setError('Không thể tạo yêu cầu thanh toán. Vui lòng thử lại.');
+      }
+    } catch (err) {
+      console.error('❌ Lỗi khi tạo URL thanh toán:', err);
+      setError('Đã có lỗi xảy ra trong quá trình tạo yêu cầu thanh toán.');
+    } finally {
+      setPaying(null); // Kết thúc quá trình thanh toán (dù thành công hay thất bại)
+    }
+  };
+
+  /**
+   * Hàm thử lại thanh toán cho booking đã thất bại
+   * @param bookingId ID của booking cần thử lại thanh toán
+   */
+  const handleRetryPayment = async (bookingId: string) => {
+    setRetrying(bookingId);
+    try {
+      console.log(`🔄 Thử lại thanh toán cho booking ID: ${bookingId}`);
+      const data = await retryPayment(bookingId);
+      if (data.payment_url) {
+        console.log(`💳 Nhận được URL thanh toán, đang chuyển hướng...`);
+        window.location.href = data.payment_url;
+      } else {
+        console.error('❌ Không nhận được URL thanh toán từ server');
+        setError('Không thể tạo yêu cầu thanh toán. Vui lòng thử lại.');
+      }
+    } catch (err) {
+      console.error('❌ Lỗi khi thử lại thanh toán:', err);
+      setError('Đã có lỗi xảy ra trong quá trình thử lại thanh toán.');
+    } finally {
+      setRetrying(null);
+    }
+  };
+
   /**
    * Hàm tải danh sách booking từ API
    */
@@ -202,60 +254,74 @@ const Bookings = () => {
       </div>
     );
   }
-  
+
   return (
-    <>
-      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-            <h1 className="text-3xl font-bold text-gray-900 mb-4 md:mb-0">Đơn đặt lịch của tôi</h1>
-            
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div>
-                <select
-                  value={filter}
-                  onChange={(e) => setFilter(e.target.value as typeof filter)}
-                  className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
-                  aria-label="Lọc đơn đặt lịch theo trạng thái"
-                >
-                  <option value="all">Tất cả đơn hàng</option>
-                  <option value="pending">Chờ xác nhận</option>
-                  <option value="confirmed">Đã xác nhận</option>
-                  <option value="completed">Hoàn thành</option>
-                  <option value="cancelled">Đã hủy</option>
-                </select>
-              </div>
-              
-              <Link to="/booking">
-                <Button>Đặt lịch mới</Button>
-              </Link>
-            </div>
-          </div>
-          
+    <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+      <div className="px-4 py-6 sm:px-0">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold text-gray-900">Lịch đã đặt</h1>
+          <Link to="/booking">
+            <Button className="bg-blue-600 hover:bg-blue-700">
+              + Đặt lịch mới
+            </Button>
+          </Link>
+        </div>
+
+        {/* Filter buttons */}
+        <div className="mb-4 flex flex-wrap gap-2">
+          {[
+            { key: 'all', label: 'Tất cả' },
+            { key: 'pending', label: 'Chờ xác nhận' },
+            { key: 'confirmed', label: 'Đã xác nhận' },
+            { key: 'completed', label: 'Hoàn thành' },
+            { key: 'cancelled', label: 'Đã hủy' },
+          ].map(item => (
+            <Button
+              key={item.key}
+              onClick={() => setFilter(item.key as any)}
+              className={filter === item.key ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'}
+            >
+              {item.label}
+            </Button>
+          ))}
+        </div>
+
+        {/* Bookings list */}
+        <div className="space-y-4">
           {filteredBookings.length > 0 ? (
-            <div className="space-y-6">
-              {filteredBookings.map((booking) => (
-                <BookingCard 
-                  key={booking.id} 
-                  booking={booking} 
-                  onBookingUpdate={loadBookings}
-                />
-              ))}
-            </div>
+            filteredBookings.map(booking => (
+              <BookingCard key={booking.id} booking={booking}>
+                <div className="mt-4 pt-4 border-t border-gray-200 flex items-center justify-end gap-4">
+                  {booking.status === 'confirmed' && booking.paymentStatus !== 'paid' && (
+                    <Button 
+                      onClick={() => handlePayment(booking.id)} 
+                      disabled={paying === booking.id}
+                      className="bg-green-500 hover:bg-green-600 text-white"
+                    >
+                      {paying === booking.id ? 'Đang xử lý...' : 'Thanh toán VNPAY'}
+                    </Button>
+                  )}
+                  {booking.paymentStatus === 'failed' && (
+                    <Button 
+                      onClick={() => handleRetryPayment(booking.id)} 
+                      disabled={retrying === booking.id}
+                      className="bg-orange-500 hover:bg-orange-600 text-white"
+                    >
+                      {retrying === booking.id ? 'Đang xử lý...' : 'Thử lại thanh toán'}
+                    </Button>
+                  )}
+                  <Button className="bg-gray-200 hover:bg-gray-300 text-gray-800">Xem chi tiết</Button>
+                </div>
+              </BookingCard>
+            ))
           ) : (
             <Card className="p-6 text-center">
-              <div className="mb-4">
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Chưa có đơn đặt lịch nào</h3>
-                <p className="text-gray-500">Bạn chưa có đơn đặt lịch nào. Hãy đặt lịch dịch vụ vệ sinh để trải nghiệm dịch vụ chất lượng của chúng tôi.</p>
-              </div>
-              <Link to="/booking">
-                <Button>Đặt lịch ngay</Button>
-              </Link>
+              <p className="text-gray-500">Không có lịch đặt nào.</p>
             </Card>
           )}
         </div>
       </div>
-    </>
+    </div>
   );
 };
 

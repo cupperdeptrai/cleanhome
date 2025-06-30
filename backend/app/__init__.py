@@ -67,6 +67,7 @@ def register_blueprints(app):
     from app.api.activity import activity_bp
     from app.api.reports import reports_bp
     from app.api.admin import admin_bp
+    from app.api.vnpay import vnpay_bp
     
     # Register blueprints with URL prefix
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
@@ -82,6 +83,7 @@ def register_blueprints(app):
     app.register_blueprint(activity_bp, url_prefix='/api/activity')
     app.register_blueprint(reports_bp, url_prefix='/api/reports')
     app.register_blueprint(admin_bp, url_prefix='/api/admin')
+    app.register_blueprint(vnpay_bp, url_prefix='/api/vnpay')
 
 def setup_logging(app):
     """Setup application logging"""
