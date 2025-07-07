@@ -303,6 +303,13 @@ const AdminBookings: React.FC = () => {
    */
   const handleUpdatePaymentStatus = async (bookingId: string, paymentStatus: AdminBooking['paymentStatus']) => {
     try {
+      // Hiển thị loading state
+      const button = document.querySelector(`[data-booking-id="${bookingId}"]`) as HTMLButtonElement;
+      if (button) {
+        button.disabled = true;
+        button.innerHTML = '<div class="animate-spin rounded-full h-3 w-3 border-b-2 border-current"></div>';
+      }
+
       await AdminService.updatePaymentStatus(bookingId, paymentStatus);
       
       // Cập nhật local state
@@ -312,19 +319,58 @@ const AdminBookings: React.FC = () => {
           : b
       ));
       
-      alert('Cập nhật trạng thái thanh toán thành công!');
+      // Hiển thị thông báo thành công với style đẹp hơn
+      const statusText = paymentStatus === 'paid' ? 'đã thanh toán' : 
+                        paymentStatus === 'refunded' ? 'đã hoàn tiền' : 
+                        paymentStatus === 'pending' ? 'đang chờ thanh toán' : 'chưa thanh toán';
+      
+      // Tạo toast notification
+      const toast = document.createElement('div');
+      toast.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2';
+      toast.innerHTML = `
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+        </svg>
+        Đã cập nhật trạng thái thanh toán thành "${statusText}" thành công!
+      `;
+      document.body.appendChild(toast);
+      
+      // Xóa toast sau 3 giây
+      setTimeout(() => {
+        if (document.body.contains(toast)) {
+          document.body.removeChild(toast);
+        }
+      }, 3000);
+      
     } catch (error) {
       console.error('Lỗi khi cập nhật trạng thái thanh toán:', error);
-      alert('Có lỗi xảy ra khi cập nhật trạng thái thanh toán');
+      
+      // Hiển thị toast lỗi
+      const toast = document.createElement('div');
+      toast.className = 'fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2';
+      toast.innerHTML = `
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+        Có lỗi xảy ra khi cập nhật trạng thái thanh toán
+      `;
+      document.body.appendChild(toast);
+      
+      setTimeout(() => {
+        if (document.body.contains(toast)) {
+          document.body.removeChild(toast);
+        }
+      }, 3000);
     }
   };
 
   /**
    * Kiểm tra xem có thể đánh dấu đã thanh toán không
-   * Chỉ cho phép khi booking đã completed và chưa thanh toán
+   * Cho phép khi booking đã hoàn thành hoặc đang thực hiện và chưa thanh toán
    */
   const canMarkAsPaid = (booking: AdminBooking) => {
-    return booking.status === 'completed' && booking.paymentStatus === 'unpaid';
+    return (booking.status === 'completed' || booking.status === 'in_progress') && 
+           (booking.paymentStatus === 'unpaid' || booking.paymentStatus === 'pending');
   };
 
   /**
@@ -462,7 +508,7 @@ const AdminBookings: React.FC = () => {
       <div className="bg-white shadow-sm rounded-lg overflow-hidden">
         {/* Desktop Table View - Tối ưu hiển thị trên màn hình với khoảng cách compact */}
         <div className="hidden lg:block overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 table-fixed">
+          <table id="bookings-table" className="min-w-full divide-y divide-gray-200 table-fixed">
             <thead className="bg-gray-50">
               <tr>
                 {/* Cột mã đơn - căn trái tiêu đề theo yêu cầu */}
@@ -659,11 +705,12 @@ const AdminBookings: React.FC = () => {
                         </button>
                       )}
 
-                      {/* === NÚT ĐÁNH DẤU ĐÃ THANH TOÁN - nút hình chữ nhật compact === */}
+                      {/* === NÚT ĐÁNH DẤU ĐÃ THANH TOÁN - nút hình chữ nhật compact với thiết kế đẹp === */}
                       {canMarkAsPaid(booking) && (
                         <button
                           onClick={() => handleUpdatePaymentStatus(booking.id, 'paid')}
-                          className="px-2 py-1 bg-green-100 text-green-700 hover:bg-green-200 rounded text-xs font-medium flex items-center gap-1 transition-colors min-w-fit"
+                          data-booking-id={booking.id}
+                          className="px-2 py-1 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 rounded text-xs font-medium flex items-center gap-1 transition-all duration-200 hover:shadow-sm border border-emerald-200 min-w-fit"
                           title="Đánh dấu đã thanh toán"
                         >
                           <BanknotesIcon className="h-3 w-3" />
@@ -788,7 +835,8 @@ const AdminBookings: React.FC = () => {
                       {canMarkAsPaid(booking) && (
                         <button
                           onClick={() => handleUpdatePaymentStatus(booking.id, 'paid')}
-                          className="text-green-600 hover:text-green-900 px-2 py-1 hover:bg-green-50 rounded text-xs flex items-center"
+                          data-booking-id={booking.id}
+                          className="text-emerald-600 hover:text-emerald-900 px-2 py-1 hover:bg-emerald-50 rounded text-xs flex items-center transition-all duration-200 border border-emerald-200 hover:border-emerald-300"
                           title="Đánh dấu đã thanh toán"
                         >
                           <BanknotesIcon className="h-4 w-4 mr-1" />
@@ -912,7 +960,8 @@ const AdminBookings: React.FC = () => {
                     {canMarkAsPaid(booking) && (
                       <button
                         onClick={() => handleUpdatePaymentStatus(booking.id, 'paid')}
-                        className="text-green-600 hover:text-green-900 p-2 hover:bg-green-50 rounded"
+                        data-booking-id={booking.id}
+                        className="text-emerald-600 hover:text-emerald-900 p-2 hover:bg-emerald-50 rounded transition-all duration-200 border border-emerald-200 hover:border-emerald-300"
                         title="Đánh dấu đã thanh toán"
                       >
                         <BanknotesIcon className="h-4 w-4" />
@@ -1225,7 +1274,8 @@ const AdminBookings: React.FC = () => {
                             handleUpdatePaymentStatus(selectedBooking.id, 'paid');
                             setShowDetailsModal(false);
                           }}
-                          className="px-3 py-2 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded text-sm font-medium flex items-center gap-1"
+                          data-booking-id={selectedBooking.id}
+                          className="px-3 py-2 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 rounded text-sm font-medium flex items-center gap-1 transition-all duration-200 hover:shadow-sm border border-emerald-200"
                         >
                           <BanknotesIcon className="h-4 w-4" />
                           Đánh dấu đã thanh toán
@@ -1239,6 +1289,7 @@ const AdminBookings: React.FC = () => {
           </div>
         </div>
       )}
+
     </div>
   );
 };

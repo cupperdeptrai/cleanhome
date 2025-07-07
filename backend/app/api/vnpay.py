@@ -1,7 +1,7 @@
 # backend/app/api/vnpay.py
 """
 API tích hợp VNPay cho dự án CleanHome
-Xử lý thanh toán, callback và IPN từ VNPay
+Xử lý thanh toán, callback và IPN từ VNPay với support cho các thẻ test
 Author: CleanHome Team
 """
 
@@ -13,6 +13,7 @@ from flask import Blueprint, request, redirect, current_app, jsonify
 from ..models.booking import Booking
 from ..models.vnpay import VnpayTransaction
 from ..models.user import User
+from ..utils.vnpay_utils import get_vnpay_response_message, get_user_friendly_message
 from .. import db
 
 vnpay_bp = Blueprint('vnpay', __name__, url_prefix='/api/vnpay')
@@ -226,24 +227,42 @@ def vnpay_return():
         transaction.vnp_transactionstatus = request.args.get('vnp_TransactionStatus')
         transaction.vnp_securehash = vnp_SecureHash
         
-        # Kiểm tra kết quả thanh toán
-        if transaction.vnp_responsecode == '00' and transaction.vnp_transactionstatus == '00':
-            # Thanh toán thành công - cập nhật booking
-            booking = Booking.query.get(transaction.booking_id)
-            if booking:
-                booking.payment_status = 'paid'
-                current_app.logger.info(f"Thanh toán thành công cho booking {booking.booking_code}")
-            else:
-                current_app.logger.error(f"Không tìm thấy booking: {transaction.booking_id}")
-                
+        # Kiểm tra kết quả thanh toán và xử lý theo response code
+        response_code = transaction.vnp_responsecode
+        transaction_status = transaction.vnp_transactionstatus
+        
+        # Lấy thông tin chi tiết về kết quả thanh toán
+        success, message, error_type = get_vnpay_response_message(response_code, transaction_status)
+        user_message = get_user_friendly_message(response_code)
+        
+        current_app.logger.info(f"VNPAY callback - Response Code: {response_code}, "
+                               f"Transaction Status: {transaction_status}, "
+                               f"Success: {success}, "
+                               f"Error Type: {error_type}, "
+                               f"User Message: {user_message['title']}")
+        
+        # Cập nhật booking dựa trên kết quả
+        booking = Booking.query.get(transaction.booking_id)
+        if not booking:
+            current_app.logger.error(f"Không tìm thấy booking: {transaction.booking_id}")
+            return redirect(f"{current_app.config['CORS_ORIGINS'][0]}/payment/failure?error=booking_not_found")
+        
+        if success and response_code == '00' and transaction_status == '00':
+            # Thanh toán thành công
+            booking.payment_status = 'paid'
+            current_app.logger.info(f"Thanh toán thành công cho booking {booking.booking_code}")
+            
             db.session.commit()
-            # Redirect về trang thành công với đầy đủ thông tin từ VNPay
+            
+            # Redirect về trang thành công với thông tin chi tiết
             success_params = []
             success_params.append(f"booking_code={booking.booking_code}")
             success_params.append(f"vnp_TxnRef={transaction.vnp_txnref}")
-            success_params.append(f"vnp_Amount={int(transaction.vnp_amount * 100)}")  # Chuyển về format VNPay
-            success_params.append(f"vnp_ResponseCode={transaction.vnp_responsecode}")
-            success_params.append(f"vnp_TransactionStatus={transaction.vnp_transactionstatus}")
+            success_params.append(f"vnp_Amount={int(transaction.vnp_amount * 100)}")
+            success_params.append(f"vnp_ResponseCode={response_code}")
+            success_params.append(f"message={urllib.parse.quote(user_message['message'])}")
+            success_params.append(f"title={urllib.parse.quote(user_message['title'])}")
+            
             if transaction.vnp_transactionno:
                 success_params.append(f"vnp_TransactionNo={transaction.vnp_transactionno}")
             if transaction.vnp_bankcode:
@@ -254,18 +273,23 @@ def vnpay_return():
             success_url = f"{current_app.config['CORS_ORIGINS'][0]}/payment/success?{'&'.join(success_params)}"
             return redirect(success_url)
         else:
-            # Thanh toán thất bại - cập nhật booking
-            booking = Booking.query.get(transaction.booking_id)
-            if booking:
-                booking.payment_status = 'failed'
-                current_app.logger.warning(f"Thanh toán thất bại cho booking {booking.booking_code}. Mã lỗi: {transaction.vnp_responsecode}")
+            # Thanh toán thất bại - cập nhật booking với thông tin chi tiết
+            booking.payment_status = 'failed'
+            current_app.logger.warning(f"Thanh toán thất bại cho booking {booking.booking_code}. "
+                                     f"Response Code: {response_code}, Error Type: {error_type}, Message: {message}")
                 
             db.session.commit()
-            # Redirect về trang thất bại với thông tin lỗi
+            
+            # Redirect về trang thất bại với thông tin lỗi chi tiết
             failure_params = []
             failure_params.append(f"booking_code={booking.booking_code}")
-            failure_params.append(f"vnp_ResponseCode={transaction.vnp_responsecode}")
+            failure_params.append(f"vnp_ResponseCode={response_code}")
             failure_params.append(f"vnp_TxnRef={transaction.vnp_txnref}")
+            failure_params.append(f"error_type={error_type}")
+            failure_params.append(f"message={urllib.parse.quote(user_message['message'])}")
+            failure_params.append(f"title={urllib.parse.quote(user_message['title'])}")
+            failure_params.append(f"action={urllib.parse.quote(user_message['action'])}")
+            failure_params.append(f"color={user_message['color']}")
             
             failure_url = f"{current_app.config['CORS_ORIGINS'][0]}/payment/failure?{'&'.join(failure_params)}"
             return redirect(failure_url)

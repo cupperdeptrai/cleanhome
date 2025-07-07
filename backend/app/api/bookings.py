@@ -5,7 +5,7 @@ Bảng: bookings, booking_items, reviews
 Author: CleanHome Team
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 import uuid
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -133,6 +133,50 @@ def create_booking():
                 'status': 'error', 
                 'message': 'Định dạng ngày hoặc giờ không hợp lệ'
             }), 400
+
+        # Validate thời gian đặt lịch
+        booking_datetime = datetime.combine(booking_date, booking_time)
+        current_datetime = datetime.now()
+        
+        # Kiểm tra không được đặt lịch trong quá khứ
+        if booking_datetime < current_datetime:
+            return jsonify({
+                'status': 'error', 
+                'message': 'Không thể đặt lịch trong quá khứ'
+            }), 400
+        
+        # Cấu hình thời gian làm việc (có thể move vào config sau)
+        WORK_START_HOUR = 8  # 8:00 AM
+        WORK_END_HOUR = 17   # 5:00 PM (17:00)
+        MIN_ADVANCE_HOURS = 1  # Phải đặt trước ít nhất 1 tiếng
+        
+        # Kiểm tra thời gian đặt lịch trong giờ làm việc
+        if booking_time.hour < WORK_START_HOUR or booking_time.hour >= WORK_END_HOUR:
+            return jsonify({
+                'status': 'error', 
+                'message': f'Thời gian đặt lịch phải từ {WORK_START_HOUR}:00 đến {WORK_END_HOUR-1}:59'
+            }), 400
+        
+        # Kiểm tra không được đặt quá 1 tiếng trước giờ kết thúc ca (áp dụng cho mọi ngày)
+        work_end_time = datetime.combine(booking_date, datetime.min.time().replace(hour=WORK_END_HOUR))
+        latest_booking_time = work_end_time - timedelta(hours=MIN_ADVANCE_HOURS)
+        
+        if booking_datetime > latest_booking_time:
+            return jsonify({
+                'status': 'error', 
+                'message': f'Chỉ được đặt lịch đến {latest_booking_time.strftime("%H:%M")} (trước {MIN_ADVANCE_HOURS} tiếng so với giờ kết thúc ca {WORK_END_HOUR}:00)'
+            }), 400
+        
+        # Nếu đặt lịch cùng ngày, kiểm tra thời gian hiện tại
+        if booking_date == current_datetime.date():
+            
+            # Kiểm tra thời gian đặt lịch phải sau thời gian hiện tại ít nhất 30 phút
+            min_booking_time = current_datetime + timedelta(minutes=30)
+            if booking_datetime < min_booking_time:
+                return jsonify({
+                    'status': 'error', 
+                    'message': f'Vui lòng đặt lịch trước ít nhất 30 phút. Thời gian sớm nhất: {min_booking_time.strftime("%H:%M")}'
+                }), 400
 
         # Kiểm tra dịch vụ
         service = Service.query.get(data['service_id'])

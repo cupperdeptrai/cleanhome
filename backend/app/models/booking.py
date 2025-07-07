@@ -123,6 +123,41 @@ class Booking(db.Model):
             'staffCount': len(self.assigned_staff) if self.assigned_staff else 0
         }
     
+    def to_dict_with_service(self):
+        """Chuyển đổi booking thành dictionary với thông tin dịch vụ chi tiết"""
+        # Lấy thông tin cơ bản từ to_dict()
+        data = self.to_dict()
+        
+        # Thêm thông tin dịch vụ chi tiết nếu có booking_items
+        if self.booking_items:
+            from app.models.service import Service, ServiceCategory
+            # Lấy dịch vụ đầu tiên (có thể mở rộng để hỗ trợ nhiều dịch vụ)
+            first_item = self.booking_items[0]
+            service = Service.query.filter_by(id=first_item.service_id).first()
+            
+            if service:
+                # Lấy thông tin category nếu có
+                category_name = None
+                if service.category_id:
+                    category = ServiceCategory.query.filter_by(id=service.category_id).first()
+                    category_name = category.name if category else None
+                
+                data.update({
+                    'service': {
+                        'id': str(service.id),
+                        'name': service.name,
+                        'description': service.description,
+                        'price': float(service.price),
+                        'duration': service.duration,
+                        'category': category_name,  # Lấy từ bảng ServiceCategory
+                        'image': service.thumbnail  # Sử dụng thumbnail thay vì image
+                    },
+                    'quantity': first_item.quantity,
+                    'unitPrice': float(first_item.unit_price)
+                })
+        
+        return data
+
     def get_staff_name(self):
         """Lấy tên nhân viên từ staff_id (backward compatibility)"""
         if self.staff_id:

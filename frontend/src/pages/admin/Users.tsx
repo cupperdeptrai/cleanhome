@@ -18,7 +18,8 @@ const AdminUsers: React.FC = () => {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-    // Filter state
+  
+  // Filter state
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -67,7 +68,8 @@ const AdminUsers: React.FC = () => {
       const matchesStatus = statusFilter === 'all' || user.status === statusFilter;
       
       return matchesSearch && matchesRole && matchesStatus;
-    })    .sort((a, b) => {
+    })
+    .sort((a, b) => {
       let aValue: string | number | null = a[sortField as keyof AdminUser];
       let bValue: string | number | null = b[sortField as keyof AdminUser];
       
@@ -273,7 +275,7 @@ const AdminUsers: React.FC = () => {
       {/* Bảng danh sách người dùng - thiết kế compact và dễ thao tác */}
       <div className="bg-white shadow-sm rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 table-fixed">
+          <table id="users-table" className="min-w-full divide-y divide-gray-200 table-fixed">
             {/* Header bảng người dùng với cột đã được điều chỉnh cho gọn gàng hơn */}
             <thead className="bg-gray-50">
               <tr>

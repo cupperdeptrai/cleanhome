@@ -22,6 +22,11 @@ const StaffManagement: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  
+  // State phân trang
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(20); // Mỗi trang hiển thị 20 staff
+  
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentStaff, setCurrentStaff] = useState<AdminStaff | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -60,6 +65,34 @@ const StaffManagement: React.FC = () => {
     const matchesStatus = statusFilter === 'all' || staff.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  /**
+   * Tính toán phân trang
+   */
+  const totalItems = filteredStaff.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentStaffList = filteredStaff.slice(startIndex, endIndex);
+
+  /**
+   * Xử lý thay đổi trang
+   */
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    // Scroll về đầu bảng khi chuyển trang
+    const tableElement = document.getElementById('staff-table');
+    if (tableElement) {
+      tableElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
+  /**
+   * Reset về trang 1 khi filter thay đổi
+   */
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter]);
 
   // Mở modal thêm nhân viên
   const handleAddStaff = () => {
@@ -274,7 +307,7 @@ const StaffManagement: React.FC = () => {
             </div>
 
             <div className="text-sm text-gray-500 flex items-center">
-              Tổng cộng: {filteredStaff.length} nhân viên
+              Tổng cộng: {totalItems} nhân viên
             </div>
           </div>
         </div>
@@ -282,7 +315,7 @@ const StaffManagement: React.FC = () => {
         {/* Staff Table */}
         <div className="bg-white shadow overflow-hidden sm:rounded-lg">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
+            <table id="staff-table" className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
                   {/* Cột nhân viên - căn trái tiêu đề theo yêu cầu */}
@@ -312,7 +345,7 @@ const StaffManagement: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredStaff.map((staff) => (
+                {currentStaffList.map((staff) => (
                   <tr key={staff.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
@@ -415,7 +448,7 @@ const StaffManagement: React.FC = () => {
         </div>
 
         {/* Empty State */}
-        {filteredStaff.length === 0 && (
+        {totalItems === 0 && (
           <div className="text-center py-12">
             <UserIcon className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">Không có nhân viên</h3>

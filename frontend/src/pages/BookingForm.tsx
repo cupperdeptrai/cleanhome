@@ -89,12 +89,22 @@ const BookingForm = () => {
       errors.date = 'Vui lòng chọn ngày';
       isValid = false;
     } else {
+      // Kiểm tra ngày được chọn có hợp lệ không (từ hôm nay đến 30 ngày tiếp theo)
       const selectedDate = new Date(date);
       const today = new Date();
+      const maxDate = new Date();
+      
+      // Set giờ về 0 để so sánh chỉ ngày
       today.setHours(0, 0, 0, 0);
+      selectedDate.setHours(0, 0, 0, 0);
+      maxDate.setDate(today.getDate() + 30);
+      maxDate.setHours(0, 0, 0, 0);
       
       if (selectedDate < today) {
-        errors.date = 'Ngày không hợp lệ';
+        errors.date = 'Không thể chọn ngày trong quá khứ';
+        isValid = false;
+      } else if (selectedDate > maxDate) {
+        errors.date = 'Chỉ có thể đặt lịch trong vòng 30 ngày tới';
         isValid = false;
       }
     }
@@ -226,29 +236,54 @@ const BookingForm = () => {
     }
   };
   
-  // Tạo danh sách các khung giờ có sẵn
+  // Tạo danh sách các khung giờ có sẵn (từ 8:00 đến 16:00 theo quy định backend)
   const availableTimeSlots = [
-    '08:00', '09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00'
+    { value: '08:00', display: '8:00 AM' },
+    { value: '09:00', display: '9:00 AM' },
+    { value: '10:00', display: '10:00 AM' },
+    { value: '11:00', display: '11:00 AM' },
+    { value: '13:00', display: '1:00 PM' },
+    { value: '14:00', display: '2:00 PM' },
+    { value: '15:00', display: '3:00 PM' },
+    { value: '16:00', display: '4:00 PM' }
   ];
   
   /**
-   * Hàm tạo danh sách ngày trong 14 ngày tới
-   * Sử dụng để hiển thị options trong dropdown chọn ngày
+   * Hàm tạo danh sách ngày từ hôm nay đến 30 ngày tiếp theo
+   * Bao gồm cả ngày hiện tại và format đẹp để hiển thị
    */
-  const getNextTwoWeeks = () => {
+  const getAvailableDates = () => {
     const dates = [];
     const today = new Date();
     
-    for (let i = 1; i <= 14; i++) {
+    // Thêm từ ngày hiện tại (i = 0) đến 30 ngày tiếp theo
+    for (let i = 0; i <= 30; i++) {
       const nextDate = new Date(today);
       nextDate.setDate(today.getDate() + i);
-      dates.push(nextDate.toISOString().split('T')[0]);
+      
+      // Format ngày để hiển thị đẹp hơn
+      const dateValue = nextDate.toISOString().split('T')[0];
+      const dayNames = ['Chủ nhật', 'Thứ hai', 'Thứ ba', 'Thứ tư', 'Thứ năm', 'Thứ sáu', 'Thứ bảy'];
+      const dayName = dayNames[nextDate.getDay()];
+      const formattedDate = `${nextDate.getDate()}/${nextDate.getMonth() + 1}/${nextDate.getFullYear()}`;
+      
+      let displayText = `${dayName}, ${formattedDate}`;
+      if (i === 0) {
+        displayText = `Hôm nay, ${formattedDate}`;
+      } else if (i === 1) {
+        displayText = `Ngày mai, ${formattedDate}`;
+      }
+      
+      dates.push({
+        value: dateValue,
+        display: displayText
+      });
     }
     
     return dates;
   };
   
-  const availableDates = getNextTwoWeeks();
+  const availableDates = getAvailableDates();
   
   return (
     <>
@@ -286,85 +321,142 @@ const BookingForm = () => {
               <div className="md:col-span-2">
                 <Card className="p-6">
                   <form onSubmit={handleSubmit} className="space-y-6">
+                    {/* Dropdown chọn dịch vụ */}
                     <div>
-                      <label htmlFor="service" className="block text-sm font-medium text-gray-700">Chọn dịch vụ</label>
+                      <label htmlFor="service" className="block text-sm font-medium text-gray-700 mb-2">
+                        🏠 Chọn dịch vụ
+                      </label>
                       <select
                         id="service"
                         name="service"
                         value={selectedService}
                         onChange={(e) => setSelectedService(e.target.value)}
-                        className={`mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md ${formErrors.service ? 'border-red-500' : ''}`}
+                        className={`mt-1 block w-full pl-4 pr-10 py-3 text-base bg-white border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                          formErrors.service ? 'border-red-500 ring-red-500' : 'border-gray-300'
+                        }`}
                       >
-                        <option value="">-- Chọn một dịch vụ --</option>
+                        <option value="" className="text-gray-500">-- Chọn một dịch vụ --</option>
                         {activeServices.map(service => (
-                          <option key={service.id} value={service.id}>
+                          <option key={service.id} value={service.id} className="py-2">
                             {service.name} - {formatPrice(service.price)}
                           </option>
                         ))}
                       </select>
-                      {formErrors.service && <p className="mt-2 text-sm text-red-600">{formErrors.service}</p>}
+                      {formErrors.service && (
+                        <p className="mt-2 text-sm text-red-600 flex items-center">
+                          <span className="mr-1">⚠️</span>
+                          {formErrors.service}
+                        </p>
+                      )}
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Phần chọn ngày và giờ với giao diện cải thiện */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      {/* Dropdown chọn ngày */}
                       <div>
-                        <label htmlFor="date" className="block text-sm font-medium text-gray-700">Chọn ngày</label>
+                        <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-2">
+                          📅 Chọn ngày thực hiện
+                        </label>
                         <select
                           id="date"
                           name="date"
                           value={date}
                           onChange={(e) => setDate(e.target.value)}
-                          className={`mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md ${formErrors.date ? 'border-red-500' : ''}`}
+                          className={`mt-1 block w-full pl-4 pr-10 py-3 text-base bg-white border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                            formErrors.date ? 'border-red-500 ring-red-500' : 'border-gray-300'
+                          }`}
                         >
-                          <option value="">-- Chọn ngày --</option>
+                          <option value="" className="text-gray-500">-- Chọn ngày --</option>
                           {availableDates.map(d => (
-                            <option key={d} value={d}>{d}</option>
+                            <option key={d.value} value={d.value} className="py-2">
+                              {d.display}
+                            </option>
                           ))}
                         </select>
-                        {formErrors.date && <p className="mt-2 text-sm text-red-600">{formErrors.date}</p>}
+                        {formErrors.date && (
+                          <p className="mt-2 text-sm text-red-600 flex items-center">
+                            <span className="mr-1">⚠️</span>
+                            {formErrors.date}
+                          </p>
+                        )}
                       </div>
+
+                      {/* Dropdown chọn giờ */}
                       <div>
-                        <label htmlFor="time" className="block text-sm font-medium text-gray-700">Chọn giờ</label>
+                        <label htmlFor="time" className="block text-sm font-medium text-gray-700 mb-2">
+                          🕐 Chọn giờ thực hiện
+                        </label>
                         <select
                           id="time"
                           name="time"
                           value={time}
                           onChange={(e) => setTime(e.target.value)}
-                          className={`mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md ${formErrors.time ? 'border-red-500' : ''}`}
+                          className={`mt-1 block w-full pl-4 pr-10 py-3 text-base bg-white border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                            formErrors.time ? 'border-red-500 ring-red-500' : 'border-gray-300'
+                          }`}
                         >
-                          <option value="">-- Chọn giờ --</option>
+                          <option value="" className="text-gray-500">-- Chọn giờ --</option>
                           {availableTimeSlots.map(slot => (
-                            <option key={slot} value={slot}>{slot}</option>
+                            <option key={slot.value} value={slot.value} className="py-2">
+                              {slot.display}
+                            </option>
                           ))}
                         </select>
-                        {formErrors.time && <p className="mt-2 text-sm text-red-600">{formErrors.time}</p>}
+                        {formErrors.time && (
+                          <p className="mt-2 text-sm text-red-600 flex items-center">
+                            <span className="mr-1">⚠️</span>
+                            {formErrors.time}
+                          </p>
+                        )}
+                        
+                        {/* Thông tin bổ sung về giờ làm việc */}
+                        <p className="mt-2 text-xs text-gray-500">
+                          💡 Giờ làm việc: 8:00 - 17:00. Chỉ nhận đặt lịch đến 16:00
+                        </p>
                       </div>
                     </div>
 
+                    {/* Phần nhập địa chỉ */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Địa chỉ</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        📍 Địa chỉ thực hiện dịch vụ
+                      </label>
                       <AddressSelector value={address} onChange={setAddress} />
-                      {formErrors.address && <p className="mt-2 text-sm text-red-600">{formErrors.address}</p>}
+                      {formErrors.address && (
+                        <p className="mt-2 text-sm text-red-600 flex items-center">
+                          <span className="mr-1">⚠️</span>
+                          {formErrors.address}
+                        </p>
+                      )}
                     </div>
 
+                    {/* Phần ghi chú */}
                     <div>
-                      <label htmlFor="notes" className="block text-sm font-medium text-gray-700">Ghi chú</label>
+                      <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-2">
+                        📝 Ghi chú thêm (tùy chọn)
+                      </label>
                       <textarea
                         id="notes"
                         name="notes"
                         rows={3}
                         value={notes}
                         onChange={(e) => setNotes(e.target.value)}
-                        className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                        placeholder="Ví dụ: Nhà có chó nhỏ, vui lòng gọi trước khi đến."
+                        className="mt-1 block w-full pl-4 pr-4 py-3 text-base bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none"
+                        placeholder="Ví dụ: Nhà có chó nhỏ, vui lòng gọi trước khi đến..."
                       ></textarea>
+                      <p className="mt-1 text-xs text-gray-500">
+                        💡 Hãy để lại thông tin cần thiết để nhân viên chuẩn bị tốt nhất
+                      </p>
                     </div>
 
+                    {/* Phần thanh toán với thông tin bổ sung về VNPAY */}
                     <div className="border-t border-gray-200 pt-6">
-                      <h3 className="text-lg font-medium text-gray-900">Phương thức thanh toán</h3>
+                      <h3 className="text-lg font-medium text-gray-900 mb-4">💳 Phương thức thanh toán</h3>
                       <fieldset className="mt-4">
                         <legend className="sr-only">Payment method</legend>
-                        <div className="space-y-4 sm:flex sm:items-center sm:space-y-0 sm:space-x-10">
-                          <div className="flex items-center">
+                        <div className="space-y-4">
+                          {/* Thanh toán tiền mặt */}
+                          <div className="flex items-center p-4 border rounded-lg hover:bg-gray-50 transition-colors">
                             <input
                               id="cash"
                               name="payment-method"
@@ -374,11 +466,16 @@ const BookingForm = () => {
                               onChange={() => setPaymentMethod('cash')}
                               className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300"
                             />
-                            <label htmlFor="cash" className="ml-3 block text-sm font-medium text-gray-700">
-                              Thanh toán tiền mặt
+                            <label htmlFor="cash" className="ml-3 flex-1">
+                              <div className="flex items-center">
+                                <span className="text-sm font-medium text-gray-700">💵 Thanh toán tiền mặt</span>
+                              </div>
+                              <p className="text-xs text-gray-500 mt-1">Thanh toán trực tiếp cho nhân viên khi hoàn thành dịch vụ</p>
                             </label>
                           </div>
-                          <div className="flex items-center">
+                          
+                          {/* Thanh toán VNPAY */}
+                          <div className="flex items-center p-4 border rounded-lg hover:bg-gray-50 transition-colors">
                             <input
                               id="vnpay"
                               name="payment-method"
@@ -388,8 +485,11 @@ const BookingForm = () => {
                               onChange={() => setPaymentMethod('vnpay')}
                               className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300"
                             />
-                            <label htmlFor="vnpay" className="ml-3 block text-sm font-medium text-gray-700">
-                              Thanh toán VNPAY
+                            <label htmlFor="vnpay" className="ml-3 flex-1">
+                              <div className="flex items-center">
+                                <span className="text-sm font-medium text-gray-700">🏦 Thanh toán VNPAY</span>
+                              </div>
+                              <p className="text-xs text-gray-500 mt-1">Thanh toán trực tuyến qua các ngân hàng nội địa</p>
                             </label>
                           </div>
                         </div>
@@ -448,7 +548,7 @@ const BookingForm = () => {
                 
                 <div className="mt-6">
                   <Card className="p-6">
-                    <h2 className="text-lg font-medium text-gray-900 mb-4">Thông tin liên hệ</h2>
+                    <h2 className="text-lg font-medium text-gray-900 mb-4">📞 Thông tin liên hệ</h2>
                     
                     <div className="space-y-3">
                       <p className="text-sm text-gray-500">
@@ -458,8 +558,20 @@ const BookingForm = () => {
                         <span className="font-medium text-gray-700">Email:</span> support@cleanhome.vn
                       </p>
                       <p className="text-sm text-gray-500">
-                        <span className="font-medium text-gray-700">Giờ làm việc:</span> 8:00 - 18:00 (Thứ 2 - Chủ nhật)
+                        <span className="font-medium text-gray-700">Giờ làm việc:</span> 8:00 - 17:00 (Thứ 2 - Chủ nhật)
                       </p>
+                      
+                      {/* Thông tin hỗ trợ thanh toán */}
+                      <div className="border-t pt-3 mt-4">
+                        <p className="text-sm text-gray-500">
+                          <span className="font-medium text-gray-700">💳 Hỗ trợ thanh toán:</span>
+                        </p>
+                        <ul className="text-xs text-gray-400 mt-1 space-y-1">
+                          <li>• Tiền mặt khi hoàn thành dịch vụ</li>
+                          <li>• VNPAY - Các ngân hàng nội địa</li>
+                          <li>• Hỗ trợ 24/7 cho vấn đề thanh toán</li>
+                        </ul>
+                      </div>
                     </div>
                   </Card>
                 </div>
