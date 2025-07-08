@@ -1,256 +1,88 @@
-# CleanHome - Hệ thống đặt dịch vụ vệ sinh
+# CleanHome - Tổng quan dự án
 
 ## Giới thiệu
 
-CleanHome là một nền tảng trực tuyến toàn diện cho phép người dùng dễ dàng đặt lịch và quản lý các dịch vụ vệ sinh nhà cửa, văn phòng. Hệ thống được thiết kế với giao diện thân thiện với người dùng, quy trình đặt lịch đơn giản và hệ thống quản trị mạnh mẽ cho các quản trị viên.
+CleanHome là nền tảng đặt lịch dịch vụ vệ sinh trực tuyến, kết nối khách hàng với các nhà cung cấp dịch vụ vệ sinh chuyên nghiệp.
 
-## Mục tiêu dự án
+## Mục tiêu
 
-- Cung cấp nền tảng trực tuyến thuận tiện cho việc đặt dịch vụ vệ sinh
-- Tối ưu hóa quy trình quản lý đơn hàng và nhân viên
-- Nâng cao trải nghiệm khách hàng thông qua giao diện dễ sử dụng
-- Cung cấp công cụ phân tích và báo cáo cho việc ra quyết định kinh doanh
-- Tăng cường hiệu quả vận hành và giảm chi phí quản lý
-
-## Đối tượng người dùng
-
-### Khách hàng
-- Người cần dịch vụ vệ sinh nhà cửa, văn phòng
-- Mong muốn đặt lịch nhanh chóng, thuận tiện
-- Cần theo dõi trạng thái đơn hàng và lịch sử sử dụng dịch vụ
-
-### Quản trị viên
-- Người quản lý hệ thống và vận hành dịch vụ
-- Cần công cụ để quản lý đơn hàng, dịch vụ, nhân viên
-- Cần báo cáo thống kê để đánh giá hiệu quả kinh doanh
-
-### Nhân viên
-- Người thực hiện dịch vụ vệ sinh
-- Cần xem lịch làm việc và thông tin đơn hàng
-- Cập nhật trạng thái công việc
+- **Khách hàng**: Đặt lịch dịch vụ vệ sinh dễ dàng, nhanh chóng
+- **Doanh nghiệp**: Tối ưu hóa quy trình quản lý đơn hàng và nhân viên
+- **Hiệu quả**: Tăng doanh thu và cải thiện trải nghiệm khách hàng
 
 ## Kiến trúc hệ thống
 
-CleanHome được xây dựng theo mô hình client-server với kiến trúc 3 tầng:
+### Frontend (React)
+- **Giao diện khách hàng**: Trang chủ, đặt lịch, theo dõi đơn hàng
+- **Giao diện quản trị**: Dashboard, quản lý đơn hàng, nhân viên, dịch vụ
+- **Responsive**: Tương thích mobile, tablet, desktop
 
-1. **Presentation Layer (Frontend)**
-   - React + TypeScript
-   - Tailwind CSS
-   - Responsive design
-   - Progressive Web App (PWA)
-
-2. **Application Layer (Backend)**
-   - Flask API (Python)
-   - RESTful API endpoints
-   - JWT Authentication
-   - Business logic
-
-3. **Data Layer**
-   - PostgreSQL database
-   - Data models và relationships
-   - Data validation
-   - Backup và recovery
-
-## Công nghệ sử dụng
-
-### Frontend
-- **Framework**: React 18
-- **Ngôn ngữ**: TypeScript
-- **Styling**: Tailwind CSS
-- **State Management**: React Context API
-- **Routing**: React Router v7
-- **UI Components**: Headless UI
-- **Icons**: Heroicons, Lucide React
-- **Charts**: Recharts
-- **Build Tool**: Vite
-
-### Backend
-- **Framework**: Flask (Python)
-- **ORM**: SQLAlchemy
-- **Authentication**: JWT (JSON Web Tokens)
-- **API Documentation**: Swagger/OpenAPI
-- **Testing**: Pytest
-- **Deployment**: Docker, Gunicorn
-
-### Database
-- **RDBMS**: PostgreSQL
-- **Migration**: Alembic
-- **Backup**: Automated daily backups
-
-
-## Tính năng chính
-
-### Dành cho khách hàng
-
-#### Quản lý tài khoản
-- Đăng ký, đăng nhập, quên mật khẩu
-- Cập nhật thông tin cá nhân
-- Quản lý địa chỉ
-
-#### Đặt lịch dịch vụ
-- Xem danh sách dịch vụ
-- Tìm kiếm và lọc dịch vụ
-- Đặt lịch với quy trình đơn giản
-- Áp dụng mã khuyến mãi
-- Chọn phương thức thanh toán
-
-#### Quản lý đơn hàng
-- Xem danh sách đơn hàng
-- Theo dõi trạng thái đơn hàng
-- Hủy hoặc thay đổi đơn hàng
-- Đánh giá dịch vụ sau khi hoàn thành
-
-#### Hỗ trợ khách hàng
-- FAQ (Câu hỏi thường gặp)
-- Form liên hệ
-- Live chat (tùy chọn)
-
-### Dành cho quản trị viên
-
-#### Dashboard
-- Tổng quan về doanh thu, đơn hàng, khách hàng
-- Biểu đồ và thống kê
-- Thông báo và cảnh báo
-
-#### Quản lý đơn hàng
-- Xem tất cả đơn hàng
-- Lọc và tìm kiếm đơn hàng
-- Cập nhật trạng thái đơn hàng
-- Phân công nhân viên
-
-#### Quản lý dịch vụ
-- Thêm/sửa/xóa dịch vụ
-- Quản lý danh mục dịch vụ
-- Cài đặt giá và thời gian
-
-#### Quản lý người dùng
-- Quản lý khách hàng
-- Quản lý nhân viên
-- Phân quyền người dùng
-
-#### Quản lý khuyến mãi
-- Tạo và quản lý mã khuyến mãi
-- Cài đặt điều kiện áp dụng
-- Theo dõi hiệu quả khuyến mãi
-
-#### Báo cáo và thống kê
-- Báo cáo doanh thu
-- Báo cáo dịch vụ
-- Báo cáo khách hàng
-- Xuất báo cáo
-
-#### Cài đặt hệ thống
-- Thông tin công ty
-- Cài đặt email
-- Cài đặt thanh toán
-
-### Dành cho nhân viên
-
-#### Lịch làm việc
-- Xem lịch làm việc
-- Nhận thông báo đơn hàng mới
-
-#### Quản lý công việc
-- Xem chi tiết đơn hàng
-- Cập nhật trạng thái công việc
-- Báo cáo vấn đề
+### Backend (Flask API)
+- **RESTful API**: Cung cấp dữ liệu cho frontend
+- **Authentication**: JWT-based security
+- **Database**: PostgreSQL với SQLAlchemy ORM
 
 ## Quy trình nghiệp vụ
 
-### Quy trình đặt lịch
-1. Khách hàng đăng nhập vào hệ thống
-2. Khách hàng chọn dịch vụ vệ sinh
-3. Khách hàng chọn ngày giờ và địa điểm
-4. Khách hàng xác nhận thông tin và thanh toán
-5. Hệ thống gửi email xác nhận đặt lịch
-6. Admin phân công nhân viên
-7. Nhân viên thực hiện dịch vụ
-8. Khách hàng xác nhận hoàn thành và đánh giá
-
-### Quy trình quản lý đơn hàng
-1. Admin nhận đơn hàng mới
-2. Admin xác nhận đơn hàng
-3. Admin phân công nhân viên
-4. Nhân viên nhận thông báo và xác nhận
+### Đặt lịch dịch vụ
+1. Khách hàng chọn dịch vụ và thời gian
+2. Nhập thông tin liên hệ và địa chỉ
+3. Xác nhận đơn hàng
+4. Admin phân công nhân viên
 5. Nhân viên thực hiện dịch vụ
-6. Nhân viên cập nhật trạng thái hoàn thành
-7. Khách hàng xác nhận và đánh giá
-8. Admin xác nhận hoàn thành đơn hàng
+6. Khách hàng đánh giá và thanh toán
 
-## Mô hình dữ liệu
+### Quản lý đơn hàng
+- **Theo dõi**: Pending → Confirmed → In Progress → Completed
+- **Phân công**: Tự động/thủ công phân công nhân viên
+- **Thông báo**: Email/SMS cho khách hàng và nhân viên
 
-### Các entity chính
-- **User**: Thông tin người dùng (khách hàng, nhân viên, admin)
-- **Service**: Thông tin dịch vụ vệ sinh
-- **Booking**: Thông tin đặt lịch
-- **Promotion**: Thông tin khuyến mãi
-- **Review**: Đánh giá của khách hàng
-- **Payment**: Thông tin thanh toán
+## Tính năng nổi bật
 
-### Quan hệ giữa các entity
-- User - Booking: One-to-Many (một người dùng có thể có nhiều đơn đặt lịch)
-- Service - Booking: One-to-Many (một dịch vụ có thể được đặt nhiều lần)
-- User (Staff) - Booking: One-to-Many (một nhân viên có thể được phân công nhiều đơn)
-- Booking - Review: One-to-One (một đơn hàng có một đánh giá)
-- Booking - Payment: One-to-One (một đơn hàng có một thanh toán)
-- Promotion - Booking: One-to-Many (một khuyến mãi có thể áp dụng cho nhiều đơn hàng)
+### Khách hàng
+- ✅ Đặt lịch trực tuyến 24/7
+- ✅ Theo dõi real-time trạng thái đơn hàng
+- ✅ Lịch sử dịch vụ và đánh giá
+- ✅ Ứng dụng khuyến mãi
 
-## Giao diện người dùng
+### Quản trị viên
+- ✅ Dashboard thống kê real-time
+- ✅ Quản lý đơn hàng thông minh
+- ✅ Phân công nhân viên tối ưu
+- ✅ Báo cáo doanh thu chi tiết
 
-### Thiết kế chung
-- **Responsive**: Tương thích với các thiết bị di động, máy tính bảng và desktop
-- **Accessibility**: Tuân thủ các tiêu chuẩn WCAG
-- **Dark/Light mode**: Hỗ trợ chế độ tối và sáng
-- **Đa ngôn ngữ**: Hỗ trợ tiếng Việt và tiếng Anh
+### Nhân viên
+- ✅ Xem lịch làm việc mobile-friendly
+- ✅ Cập nhật tiến độ công việc
+- ✅ Nhận thông báo đơn hàng mới
 
-### Trang chính
-- Header với logo, menu, tìm kiếm, đăng nhập/đăng ký
-- Hero section giới thiệu dịch vụ
-- Danh sách dịch vụ nổi bật
-- Các bước đặt lịch
-- Đánh giá từ khách hàng
-- Footer với thông tin liên hệ, sitemap
+## Lợi ích
 
-### Trang quản trị
-- Sidebar với menu điều hướng
-- Header với thông tin người dùng, thông báo
-- Nội dung chính thay đổi theo từng trang
-- Responsive design cho cả desktop và tablet
+### Cho khách hàng
+- Tiết kiệm thời gian đặt lịch
+- Dịch vụ chuyên nghiệp, đáng tin cậy
+- Giá cả minh bạch
+- Hỗ trợ 24/7
 
-## Bảo mật
+### Cho doanh nghiệp
+- Tăng hiệu quả quản lý
+- Giảm chi phí vận hành
+- Tăng doanh thu
+- Phân tích dữ liệu khách hàng
 
-### Authentication & Authorization
-- JWT-based authentication
-- Role-based access control
-- Password hashing với bcrypt
-- HTTPS cho tất cả các request
+## Roadmap phát triển
 
-### Bảo vệ dữ liệu
-- Input validation
-- SQL injection prevention
-- XSS protection
-- CSRF protection
-- Rate limiting
+### Phase 1 ✅ (Hoàn thành)
+- Hệ thống đặt lịch cơ bản
+- Quản lý đơn hàng
+- Dashboard admin
 
-## Roadmap
-
-### Phase 1: MVP (Minimum Viable Product)
-- Đăng ký, đăng nhập
-- Danh sách dịch vụ
-- Đặt lịch cơ bản
-- Quản lý đơn hàng đơn giản
-- Admin dashboard cơ bản
-
-### Phase 2: Enhanced Features
+### Phase 2 🚧 (Đang phát triển)
 - Thanh toán trực tuyến
-- Hệ thống đánh giá
-- Khuyến mãi và mã giảm giá
-- Báo cáo và thống kê
-- Quản lý nhân viên nâng cao
+- Mobile app
+- AI recommend services
 
-
-## Kết luận
-
-CleanHome là một hệ thống toàn diện giúp tối ưu hóa quy trình đặt lịch và quản lý dịch vụ vệ sinh. Với kiến trúc hiện đại, giao diện thân thiện và tính năng đầy đủ, CleanHome không chỉ nâng cao trải nghiệm khách hàng mà còn giúp doanh nghiệp vận hành hiệu quả hơn.
-
-Dự án được phát triển với công nghệ tiên tiến, tuân thủ các tiêu chuẩn phát triển phần mềm và có khả năng mở rộng trong tương lai. Việc tích hợp các công nghệ như React, Flask và PostgreSQL đảm bảo hệ thống vận hành ổn định, bảo mật và có hiệu suất cao.
+### Phase 3 📋 (Kế hoạch)
+- IoT integration
+- Advanced analytics
+- Multi-location support

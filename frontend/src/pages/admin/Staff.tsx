@@ -15,6 +15,152 @@ import {
 } from '@heroicons/react/24/outline';
 
 /**
+ * Component PaginationControls tái sử dụng từ Bookings.tsx
+ */
+const PaginationControls: React.FC<{
+  currentPage: number;
+  totalPages: number;
+  totalItems: number;
+  itemsPerPage: number;
+  onPageChange: (page: number) => void;
+}> = ({ currentPage, totalPages, totalItems, itemsPerPage, onPageChange }) => {
+  const startItem = (currentPage - 1) * itemsPerPage + 1;
+  const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+
+  // Tạo danh sách trang để hiển thị
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisible = 7; // Số trang tối đa hiển thị
+    
+    if (totalPages <= maxVisible) {
+      // Nếu tổng số trang ít, hiển thị tất cả
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      // Hiển thị thông minh: 1 ... 3 4 [5] 6 7 ... 10
+      pages.push(1);
+      
+      if (currentPage > 4) {
+        pages.push('...');
+      }
+      
+      const start = Math.max(2, currentPage - 2);
+      const end = Math.min(totalPages - 1, currentPage + 2);
+      
+      for (let i = start; i <= end; i++) {
+        if (i !== 1 && i !== totalPages) {
+          pages.push(i);
+        }
+      }
+      
+      if (currentPage < totalPages - 3) {
+        pages.push('...');
+      }
+      
+      if (totalPages > 1) {
+        pages.push(totalPages);
+      }
+    }
+    
+    return pages;
+  };
+
+  if (totalPages <= 1) return null;
+
+  return (
+    <div className="bg-white px-4 py-3 flex items-center justify-between sm:px-6">
+      <div className="flex-1 flex justify-between sm:hidden">
+        {/* Mobile pagination */}
+        <button
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className="relative inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          ← Trước
+        </button>
+        <div className="flex items-center">
+          <span className="text-sm text-gray-700 bg-blue-50 px-3 py-1 rounded-full">
+            {currentPage} / {totalPages}
+          </span>
+        </div>
+        <button
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className="relative inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Sau →
+        </button>
+      </div>
+      
+      <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+        <div className="flex items-center space-x-4">
+          <p className="text-sm text-gray-700">
+            Hiển thị <span className="font-medium">{startItem}</span> đến{' '}
+            <span className="font-medium">{endItem}</span> trong{' '}
+            <span className="font-medium">{totalItems}</span> nhân viên
+          </p>
+          <div className="text-sm text-gray-600 bg-blue-50 px-3 py-1 rounded-full">
+            Trang <span className="font-medium text-blue-700">{currentPage}</span> / <span className="font-medium text-blue-700">{totalPages}</span>
+          </div>
+        </div>
+        <div>
+          <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+            {/* Previous button */}
+            <button
+              onClick={() => onPageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <span className="sr-only">Trang trước</span>
+              <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+            </button>
+            
+            {/* Page numbers */}
+            {getPageNumbers().map((page, index) => (
+              page === '...' ? (
+                <span
+                  key={`ellipsis-${index}`}
+                  className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700"
+                >
+                  ...
+                </span>
+              ) : (
+                <button
+                  key={page}
+                  onClick={() => onPageChange(page as number)}
+                  className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                    currentPage === page
+                      ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
+                      : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                  }`}
+                >
+                  {page}
+                </button>
+              )
+            ))}
+            
+            {/* Next button */}
+            <button
+              onClick={() => onPageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <span className="sr-only">Trang sau</span>
+              <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </nav>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/**
  * Trang Quản lý Nhân viên - Phiên bản mới đồng bộ với schema
  */
 const StaffManagement: React.FC = () => {
@@ -25,7 +171,7 @@ const StaffManagement: React.FC = () => {
   
   // State phân trang
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(20); // Mỗi trang hiển thị 20 staff
+  const [itemsPerPage] = useState(30); // Mỗi trang hiển thị 30 staff (giống bookings)
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentStaff, setCurrentStaff] = useState<AdminStaff | null>(null);
@@ -447,6 +593,15 @@ const StaffManagement: React.FC = () => {
           </div>
         </div>
 
+        {/* Pagination Controls */}
+        <PaginationControls
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          itemsPerPage={itemsPerPage}
+          onPageChange={handlePageChange}
+        />
+
         {/* Empty State */}
         {totalItems === 0 && (
           <div className="text-center py-12">
@@ -685,6 +840,17 @@ const StaffManagement: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Pagination - Sticky Footer */}
+      <div className="sticky bottom-0 z-40 bg-white border-t border-gray-200 shadow-lg">
+        <PaginationControls
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          itemsPerPage={itemsPerPage}
+          onPageChange={handlePageChange}
+        />
+      </div>
     </>
   );
 };

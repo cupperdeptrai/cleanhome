@@ -2,8 +2,13 @@
 
 import uuid
 from datetime import datetime, date
+from sqlalchemy import String, func, Enum
 from sqlalchemy.dialects.postgresql import UUID
 from app.extensions import db
+
+# Define ENUM types to match database
+DISCOUNT_TYPES = ['percentage', 'fixed']
+STATUS_TYPES = ['active', 'inactive', 'draft']
 
 class Promotion(db.Model):
     """Promotion model"""
@@ -15,8 +20,8 @@ class Promotion(db.Model):
     description = db.Column(db.Text)
     
     # Discount details
-    type = db.Column(db.String(20), nullable=False)  # percentage, fixed
-    value = db.Column(db.Numeric(10, 2), nullable=False)  # percentage or fixed amount
+    discount_type = db.Column(Enum(*DISCOUNT_TYPES, name='discount_type'), nullable=False)  # percentage, fixed
+    discount_value = db.Column(db.Numeric(10, 2), nullable=False)  # percentage or fixed amount
     min_order_value = db.Column(db.Numeric(10, 2), default=0)
     max_discount = db.Column(db.Numeric(10, 2))
     
@@ -28,7 +33,7 @@ class Promotion(db.Model):
     usage_limit = db.Column(db.Integer)  # null means unlimited
     used_count = db.Column(db.Integer, default=0)
     
-    status = db.Column(db.String(20), nullable=False, default='active')  # active, inactive, expired
+    status = db.Column(Enum(*STATUS_TYPES, name='service_status'), nullable=False, default='active')  # active, inactive, draft
     
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -64,12 +69,12 @@ class Promotion(db.Model):
     
     def calculate_discount(self, order_value):
         """Calculate discount amount"""
-        if self.type == 'percentage':
-            discount = order_value * (self.value / 100)
+        if self.discount_type == 'percentage':
+            discount = order_value * (self.discount_value / 100)
             if self.max_discount:
                 discount = min(discount, self.max_discount)
         else:  # fixed
-            discount = self.value
+            discount = self.discount_value
         
         return min(discount, order_value)
 

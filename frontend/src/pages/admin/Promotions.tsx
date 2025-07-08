@@ -1,87 +1,15 @@
-import React, { useState } from 'react';
-import { Promotion } from '../../types';
+import React, { useState, useEffect } from 'react';
+import PromotionService, { Promotion } from '../../services/promotion.service';
 
 /**
  * Trang Quản lý Khuyến mãi - Hiển thị danh sách khuyến mãi và cho phép thêm/sửa/xóa
  * @returns Trang quản lý khuyến mãi
  */
 const Promotions: React.FC = () => {
-  // Dữ liệu mẫu cho danh sách khuyến mãi
-  const [promotions, setPromotions] = useState<Promotion[]>([
-    {
-      id: '1',
-      code: 'WELCOME20',
-      name: 'Chào mừng khách hàng mới',
-      description: 'Giảm 20% cho đơn hàng đầu tiên của khách hàng mới',
-      discountType: 'percentage',
-      discountValue: 20,
-      startDate: '2023-06-01',
-      endDate: '2023-07-31',
-      isActive: true,
-      minOrderValue: 300000,
-      maxDiscount: 200000,
-      usageLimit: 1,
-      usageCount: 45
-    },
-    {
-      id: '2',
-      code: 'SUMMER50K',
-      name: 'Khuyến mãi hè',
-      description: 'Giảm 50.000đ cho đơn hàng từ 500.000đ',
-      discountType: 'fixed',
-      discountValue: 50000,
-      startDate: '2023-06-15',
-      endDate: '2023-08-31',
-      isActive: true,
-      minOrderValue: 500000,
-      usageLimit: 0,
-      usageCount: 78
-    },
-    {
-      id: '3',
-      code: 'CLEAN30',
-      name: 'Vệ sinh tổng hợp',
-      description: 'Giảm 30% cho dịch vụ vệ sinh tổng hợp',
-      discountType: 'percentage',
-      discountValue: 30,
-      startDate: '2023-05-01',
-      endDate: '2023-06-30',
-      isActive: false,
-      minOrderValue: 0,
-      maxDiscount: 300000,
-      usageLimit: 0,
-      usageCount: 120
-    },
-    {
-      id: '4',
-      code: 'REFER100K',
-      name: 'Giới thiệu bạn bè',
-      description: 'Giảm 100.000đ khi giới thiệu bạn bè sử dụng dịch vụ',
-      discountType: 'fixed',
-      discountValue: 100000,
-      startDate: '2023-01-01',
-      endDate: '2023-12-31',
-      isActive: true,
-      minOrderValue: 0,
-      usageLimit: 5,
-      usageCount: 32
-    },
-    {
-      id: '5',
-      code: 'WEEKEND15',
-      name: 'Cuối tuần vui vẻ',
-      description: 'Giảm 15% cho đơn hàng đặt vào cuối tuần',
-      discountType: 'percentage',
-      discountValue: 15,
-      startDate: '2023-06-01',
-      endDate: '2023-09-30',
-      isActive: true,
-      minOrderValue: 200000,
-      maxDiscount: 150000,
-      usageLimit: 0,
-      usageCount: 67
-    }
-  ]);
+  // State cho danh sách khuyến mãi từ API
+  const [promotions, setPromotions] = useState<Promotion[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // State cho modal thêm/sửa khuyến mãi
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -89,6 +17,26 @@ const Promotions: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
+
+  // Load promotions from API
+  useEffect(() => {
+    loadPromotions();
+  }, []);
+
+  const loadPromotions = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await PromotionService.getPromotions();
+      setPromotions(data);
+    } catch (err: unknown) {
+      console.error('Error loading promotions:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load promotions';
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Hàm reset filters
   const resetFilters = () => {
@@ -128,17 +76,43 @@ const Promotions: React.FC = () => {
   };
 
   // Xử lý xóa khuyến mãi
-  const handleDeletePromotion = (id: string) => {
-    if (window.confirm('Bạn có chắc chắn muốn xóa khuyến mãi này không?')) {
-      setPromotions(promotions.filter(promotion => promotion.id !== id));
+  const handleDeletePromotion = async (id: string) => {
+    const promotion = promotions.find(p => p.id === id);
+    if (!promotion) return;
+    
+    if (window.confirm(`Bạn có chắc chắn muốn xóa khuyến mãi "${promotion.name}" không?`)) {
+      try {
+        await PromotionService.deletePromotion(id);
+        setPromotions(promotions.filter(p => p.id !== id));
+        alert('Xóa khuyến mãi thành công!');
+      } catch (err: unknown) {
+        console.error('Error deleting promotion:', err);
+        const errorMessage = err instanceof Error ? err.message : 'Có lỗi xảy ra khi xóa khuyến mãi';
+        alert(errorMessage);
+      }
     }
   };
 
-  // Xử lý thay đổi trạng thái khuyến mãi
-  const handleToggleStatus = (id: string) => {
-    setPromotions(promotions.map(promotion => 
-      promotion.id === id ? { ...promotion, isActive: !promotion.isActive } : promotion
-    ));
+  // Xử lý thay đổi trạng thái khuyến mãi - Gọi API thay vì chỉ cập nhật state
+  const handleToggleStatus = async (id: string) => {
+    try {
+      const promotion = promotions.find(p => p.id === id);
+      if (!promotion) return;
+      
+      const newStatus = await PromotionService.togglePromotionStatus(id);
+      
+      // Cập nhật state local để UI cập nhật ngay lập tức
+      setPromotions(promotions.map(p => 
+        p.id === id ? { ...p, isActive: newStatus } : p
+      ));
+      
+      // Hiển thị thông báo thành công
+      alert(`Đã ${newStatus ? 'kích hoạt' : 'tạm ngưng'} khuyến mãi "${promotion.name}" thành công!`);
+    } catch (err: unknown) {
+      console.error('Error toggling promotion status:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Có lỗi xảy ra khi thay đổi trạng thái khuyến mãi';
+      alert(errorMessage);
+    }
   };
 
   // Lọc khuyến mãi theo tìm kiếm và trạng thái
@@ -168,21 +142,67 @@ const Promotions: React.FC = () => {
     return amount.toLocaleString() + 'đ';
   };
 
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Đang tải danh sách khuyến mãi...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-600 mb-4">
+            <svg className="w-12 h-12 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Có lỗi xảy ra</h3>
+          <p className="text-gray-500 mb-4">{error}</p>
+          <button
+            onClick={loadPromotions}
+            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+          >
+            Thử lại
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="min-h-screen bg-gray-50 p-2 sm:p-4">
         <div className="max-w-full space-y-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Quản lý khuyến mãi</h1>
-            <button
-              onClick={handleAddPromotion}
-              className="w-full sm:w-auto inline-flex items-center px-4 lg:px-6 py-2 lg:py-3 border border-transparent rounded-lg shadow-sm text-sm lg:text-base font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              <svg className="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              Thêm khuyến mãi mới
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={loadPromotions}
+                className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                title="Làm mới dữ liệu"
+              >
+                <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Làm mới
+              </button>              <button
+                onClick={handleAddPromotion}
+                className="w-full sm:w-auto inline-flex items-center px-4 lg:px-6 py-2 lg:py-3 border border-transparent rounded-lg shadow-sm text-sm lg:text-base font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                <svg className="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                Thêm khuyến mãi mới
+              </button>
+            </div>
           </div>
 
           {/* Bộ lọc và tìm kiếm - Full Width */}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   MagnifyingGlassIcon, 
   FunnelIcon, 
@@ -10,6 +10,152 @@ import {
 } from '@heroicons/react/24/outline';
 import AdminService, { AdminBooking, AdminStaff } from '../../services/admin.service';
 import { formatDate } from '../../utils/dateTime';
+
+/**
+ * Component phân trang
+ */
+const PaginationControls: React.FC<{
+  currentPage: number;
+  totalPages: number;
+  totalItems: number;
+  itemsPerPage: number;
+  onPageChange: (page: number) => void;
+}> = ({ currentPage, totalPages, totalItems, itemsPerPage, onPageChange }) => {
+  const startItem = (currentPage - 1) * itemsPerPage + 1;
+  const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+
+  // Tạo danh sách trang để hiển thị
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisible = 7; // Số trang tối đa hiển thị
+    
+    if (totalPages <= maxVisible) {
+      // Nếu tổng số trang ít, hiển thị tất cả
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      // Hiển thị thông minh: 1 ... 3 4 [5] 6 7 ... 10
+      pages.push(1);
+      
+      if (currentPage > 4) {
+        pages.push('...');
+      }
+      
+      const start = Math.max(2, currentPage - 2);
+      const end = Math.min(totalPages - 1, currentPage + 2);
+      
+      for (let i = start; i <= end; i++) {
+        if (i !== 1 && i !== totalPages) {
+          pages.push(i);
+        }
+      }
+      
+      if (currentPage < totalPages - 3) {
+        pages.push('...');
+      }
+      
+      if (totalPages > 1) {
+        pages.push(totalPages);
+      }
+    }
+    
+    return pages;
+  };
+
+  if (totalPages <= 1) return null;
+
+  return (
+    <div className="bg-white px-4 py-3 flex items-center justify-between sm:px-6">
+      <div className="flex-1 flex justify-between sm:hidden">
+        {/* Mobile pagination */}
+        <button
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className="relative inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          ← Trước
+        </button>
+        <div className="flex items-center">
+          <span className="text-sm text-gray-700 bg-blue-50 px-3 py-1 rounded-full">
+            {currentPage} / {totalPages}
+          </span>
+        </div>
+        <button
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className="relative inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Sau →
+        </button>
+      </div>
+      
+      <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+        <div className="flex items-center space-x-4">
+          <p className="text-sm text-gray-700">
+            Hiển thị <span className="font-medium">{startItem}</span> đến{' '}
+            <span className="font-medium">{endItem}</span> trong{' '}
+            <span className="font-medium">{totalItems}</span> đơn đặt lịch
+          </p>
+          <div className="text-sm text-gray-600 bg-blue-50 px-3 py-1 rounded-full">
+            Trang <span className="font-medium text-blue-700">{currentPage}</span> / <span className="font-medium text-blue-700">{totalPages}</span>
+          </div>
+        </div>
+        <div>
+          <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+            {/* Previous button */}
+            <button
+              onClick={() => onPageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <span className="sr-only">Trang trước</span>
+              <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+            </button>
+            
+            {/* Page numbers */}
+            {getPageNumbers().map((page, index) => (
+              page === '...' ? (
+                <span
+                  key={`ellipsis-${index}`}
+                  className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700"
+                >
+                  ...
+                </span>
+              ) : (
+                <button
+                  key={page}
+                  onClick={() => onPageChange(page as number)}
+                  className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                    currentPage === page
+                      ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
+                      : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                  }`}
+                >
+                  {page}
+                </button>
+              )
+            ))}
+            
+            {/* Next button */}
+            <button
+              onClick={() => onPageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <span className="sr-only">Trang sau</span>
+              <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </nav>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 /**
  * Component tooltip để hiển thị danh sách nhân viên
@@ -54,15 +200,23 @@ const AdminBookings: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalBookings, setTotalBookings] = useState(0);
+  const [itemsPerPage] = useState(30); // 30 đơn mỗi trang
+  
   // Filter state
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [staffFilter, setStaffFilter] = useState<string>('all');
-    // Modal state
+  
+  // Modal state
   const [selectedBooking, setSelectedBooking] = useState<AdminBooking | null>(null);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  
   // State cho việc chọn nhiều nhân viên
   const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([]);
   const [assignNotes, setAssignNotes] = useState('');
@@ -83,43 +237,40 @@ const AdminBookings: React.FC = () => {
       });
     }
   }, [bookings]);
-  
-  // Loading dữ liệu khi component mount
-  useEffect(() => {
-    loadData();
-  }, []);
 
   /**
    * Tải dữ liệu booking và staff
    */
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       
       console.log('🔄 AdminBookings - Bắt đầu load data...');
 
-      const [bookingsData, staffData] = await Promise.all([
-        AdminService.getBookings(),
+      const [bookingsResponse, staffData] = await Promise.all([
+        AdminService.getBookings(currentPage, itemsPerPage),
         AdminService.getStaff()
       ]);
 
-      console.log('📊 AdminBookings - Loaded bookings:', bookingsData.length);
+      console.log('📊 AdminBookings - Loaded bookings:', bookingsResponse.bookings.length);
       console.log('👥 AdminBookings - Loaded staff:', staffData.length);
       
       // Log một số booking để kiểm tra format dữ liệu
-      if (bookingsData.length > 0) {
+      if (bookingsResponse.bookings.length > 0) {
         console.log('📝 AdminBookings - Sample booking:', {
-          id: bookingsData[0].id,
-          bookingCode: bookingsData[0].bookingCode,
-          staffId: bookingsData[0].staffId,
-          staffName: bookingsData[0].staffName,
-          assignedStaff: bookingsData[0].assignedStaff,
-          staffCount: bookingsData[0].staffCount
+          id: bookingsResponse.bookings[0].id,
+          bookingCode: bookingsResponse.bookings[0].bookingCode,
+          staffId: bookingsResponse.bookings[0].staffId,
+          staffName: bookingsResponse.bookings[0].staffName,
+          assignedStaff: bookingsResponse.bookings[0].assignedStaff,
+          staffCount: bookingsResponse.bookings[0].staffCount
         });
       }
 
-      setBookings(bookingsData);
+      setBookings(bookingsResponse.bookings);
+      setTotalBookings(bookingsResponse.total);
+      setTotalPages(bookingsResponse.totalPages);
       setStaff(staffData.filter(s => s.status === 'active'));
 
     } catch (error) {
@@ -128,7 +279,12 @@ const AdminBookings: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, itemsPerPage]);
+  
+  // Loading dữ liệu khi component mount
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   /**
    * Lọc danh sách booking theo filter
@@ -258,8 +414,13 @@ const AdminBookings: React.FC = () => {
   };
 
   /**
-   * Toggle chọn nhân viên
+   * Xử lý thay đổi trang
    */
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    // Scroll to top with smooth animation
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
   const toggleStaffSelection = (staffId: string) => {
     setSelectedStaffIds(prev => 
       prev.includes(staffId) 
@@ -430,7 +591,7 @@ const AdminBookings: React.FC = () => {
             Làm mới
           </button>
           <div className="text-sm text-gray-500">
-            Tổng: {filteredBookings.length} đơn
+            <span>Tổng: {totalBookings} đơn</span>
           </div>
         </div>
       </div>      {/* Filters */}
@@ -586,22 +747,9 @@ const AdminBookings: React.FC = () => {
                   {/* Cột 4: Nhân viên - thông tin nhân viên gọn gàng */}
                   <td className="px-2 py-3 w-32">
                     <div>
-                      {/* Debug log cho từng booking */}
-                      {process.env.NODE_ENV === 'development' && (() => {
-                        console.log(`🔍 Booking ${booking.bookingCode} staff info:`, {
-                          staffId: booking.staffId,
-                          staffName: booking.staffName,
-                          assignedStaff: booking.assignedStaff,
-                          hasAssignedStaff: !!(booking.assignedStaff && booking.assignedStaff.length > 0),
-                          hasStaffName: !!(booking.staffId && booking.staffName)
-                        });
-                        return null;
-                      })()}
-                      
-                      {/* Ưu tiên hiển thị assignedStaff, fallback về staffName */}
+                      {/* Ưu tiên hiển thị assignedStaff (nhiều nhân viên), sau đó mới đến staff_id */}
                       {booking.assignedStaff && booking.assignedStaff.length > 0 ? (
                         <div>
-                          <div className="text-xs text-green-600 font-medium mb-1">✓ Assigned Staff:</div>
                           {booking.assignedStaff.length === 1 ? (
                             <div className="text-xs text-gray-900 truncate" title={booking.assignedStaff[0].staffName}>
                               {booking.assignedStaff[0].staffName}
@@ -619,14 +767,12 @@ const AdminBookings: React.FC = () => {
                         </div>
                       ) : booking.staffId && booking.staffName ? (
                         <div>
-                          <div className="text-xs text-blue-600 font-medium mb-1">→ Staff Name:</div>
                           <div className="text-xs text-gray-900 truncate" title={booking.staffName}>
                             {booking.staffName}
                           </div>
                         </div>
                       ) : booking.staffId ? (
                         <div>
-                          <div className="text-xs text-yellow-600 font-medium mb-1">⚠ Only ID:</div>
                           <div className="text-xs text-gray-500 truncate">
                             ID: {booking.staffId}
                           </div>
@@ -680,13 +826,21 @@ const AdminBookings: React.FC = () => {
                         <button
                           onClick={() => {
                             setSelectedBooking(booking);
+                            // Khởi tạo danh sách nhân viên đã được phân công
+                            if (booking.assignedStaff && booking.assignedStaff.length > 0) {
+                              setSelectedStaffIds(booking.assignedStaff.map(staff => staff.staffId));
+                            } else if (booking.staffId) {
+                              setSelectedStaffIds([booking.staffId]);
+                            } else {
+                              setSelectedStaffIds([]);
+                            }
                             setShowAssignModal(true);
                           }}
                           className="px-2 py-1 bg-green-100 text-green-700 hover:bg-green-200 rounded text-xs font-medium flex items-center gap-1 transition-colors min-w-fit"
                           title="Phân công nhân viên"
                         >
                           <UserPlusIcon className="h-3 w-3" />
-                          <span className="hidden xl:inline">{booking.staffId ? 'Đổi NV' : 'Phân công'}</span>
+                          <span className="hidden xl:inline">{(booking.staffId || (booking.assignedStaff && booking.assignedStaff.length > 0)) ? 'Đổi NV' : 'Phân công'}</span>
                         </button>
                       )}
 
@@ -808,13 +962,21 @@ const AdminBookings: React.FC = () => {
                         <button
                           onClick={() => {
                             setSelectedBooking(booking);
+                            // Khởi tạo danh sách nhân viên đã được phân công
+                            if (booking.assignedStaff && booking.assignedStaff.length > 0) {
+                              setSelectedStaffIds(booking.assignedStaff.map(staff => staff.staffId));
+                            } else if (booking.staffId) {
+                              setSelectedStaffIds([booking.staffId]);
+                            } else {
+                              setSelectedStaffIds([]);
+                            }
                             setShowAssignModal(true);
                           }}
                           className="text-green-600 hover:text-green-900 px-2 py-1 hover:bg-green-50 rounded text-xs flex items-center"
-                          title="Phân công"
+                          title={(booking.staffId || (booking.assignedStaff && booking.assignedStaff.length > 0)) ? 'Đổi nhân viên' : 'Phân công nhân viên'}
                         >
                           <UserPlusIcon className="h-4 w-4 mr-1" />
-                          Phân công
+                          {(booking.staffId || (booking.assignedStaff && booking.assignedStaff.length > 0)) ? 'Đổi NV' : 'Phân công'}
                         </button>
                       )}
 
@@ -935,10 +1097,18 @@ const AdminBookings: React.FC = () => {
                       <button
                         onClick={() => {
                           setSelectedBooking(booking);
+                          // Khởi tạo danh sách nhân viên đã được phân công
+                          if (booking.assignedStaff && booking.assignedStaff.length > 0) {
+                            setSelectedStaffIds(booking.assignedStaff.map(staff => staff.staffId));
+                          } else if (booking.staffId) {
+                            setSelectedStaffIds([booking.staffId]);
+                          } else {
+                            setSelectedStaffIds([]);
+                          }
                           setShowAssignModal(true);
                         }}
                         className="text-green-600 hover:text-green-900 p-2 hover:bg-green-50 rounded"
-                        title="Phân công"
+                        title={(booking.staffId || (booking.assignedStaff && booking.assignedStaff.length > 0)) ? 'Đổi nhân viên' : 'Phân công nhân viên'}
                       >
                         <UserPlusIcon className="h-4 w-4" />
                       </button>
@@ -974,21 +1144,66 @@ const AdminBookings: React.FC = () => {
           </div>
         </div>
 
-        {filteredBookings.length === 0 && (
+        {filteredBookings.length === 0 && !loading && (
           <div className="text-center py-12">
             <div className="text-gray-500">
-              <div className="text-lg font-medium mb-2">Không tìm thấy đơn đặt lịch nào</div>
-              <div>Thử điều chỉnh bộ lọc để xem thêm kết quả</div>
+              {bookings.length === 0 ? (
+                <>
+                  <div className="text-lg font-medium mb-2">Không có đơn đặt lịch nào</div>
+                  <div>Chưa có đơn đặt lịch nào trong hệ thống</div>
+                </>
+              ) : (
+                <>
+                  <div className="text-lg font-medium mb-2">Không tìm thấy đơn đặt lịch nào</div>
+                  <div>Thử điều chỉnh bộ lọc hoặc từ khóa tìm kiếm để xem thêm kết quả</div>
+                </>
+              )}
             </div>
           </div>
         )}
-      </div>      {/* Modal Phân công nhân viên */}
+      </div>
+
+      {/* Pagination - Sticky Footer */}
+      <div className="sticky bottom-0 z-40 bg-white border-t border-gray-200 shadow-lg">
+        <PaginationControls
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalBookings}
+          itemsPerPage={itemsPerPage}
+          onPageChange={handlePageChange}
+        />
+      </div>
+
+      {/* Modal Phân công nhân viên */}
       {showAssignModal && selectedBooking && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg max-w-lg w-full p-6 max-h-[80vh] overflow-y-auto">
             <h3 className="text-lg font-medium mb-4">
-              Phân công nhân viên cho đơn {selectedBooking.bookingCode}
+              {selectedBooking.staffId || (selectedBooking.assignedStaff && selectedBooking.assignedStaff.length > 0) 
+                ? `Đổi nhân viên cho đơn ${selectedBooking.bookingCode}`
+                : `Phân công nhân viên cho đơn ${selectedBooking.bookingCode}`
+              }
             </h3>
+            
+            {/* Hiển thị nhân viên hiện tại khi đang đổi */}
+            {(selectedBooking.staffId || (selectedBooking.assignedStaff && selectedBooking.assignedStaff.length > 0)) && (
+              <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-md">
+                <div className="text-sm font-medium text-gray-700 mb-2">Nhân viên hiện tại:</div>
+                <div className="flex flex-wrap gap-2">
+                  {selectedBooking.assignedStaff && selectedBooking.assignedStaff.length > 0 ? (
+                    selectedBooking.assignedStaff.map((staff, index) => (
+                      <span key={index} className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
+                        {staff.staffName}
+                      </span>
+                    ))
+                  ) : selectedBooking.staffName && (
+                    <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
+                      {selectedBooking.staffName}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
             
             {/* Checkbox để chọn nhiều nhân viên */}
             <div className="mb-4">
@@ -1028,7 +1243,11 @@ const AdminBookings: React.FC = () => {
                 onChange={(e) => setAssignNotes(e.target.value)}
                 className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                 rows={3}
-                placeholder="Ví dụ: Cần 2 nhân viên cho căn hộ lớn, ưu tiên nhân viên có kinh nghiệm..."
+                placeholder={
+                  (selectedBooking?.staffId || (selectedBooking?.assignedStaff && selectedBooking.assignedStaff.length > 0)) 
+                    ? "Ghi chú thay đổi nhân viên (tùy chọn). Ví dụ: Đổi nhân viên do yêu cầu khách hàng..."
+                    : "Ví dụ: Cần 2 nhân viên cho căn hộ lớn, ưu tiên nhân viên có kinh nghiệm..."
+                }
               />
             </div>
 
@@ -1061,7 +1280,10 @@ const AdminBookings: React.FC = () => {
                 disabled={selectedStaffIds.length === 0}
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
               >
-                Phân công {selectedStaffIds.length > 0 ? `${selectedStaffIds.length} nhân viên` : ''}
+                {(selectedBooking?.staffId || (selectedBooking?.assignedStaff && selectedBooking.assignedStaff.length > 0)) 
+                  ? `Đổi thành ${selectedStaffIds.length > 0 ? `${selectedStaffIds.length} nhân viên` : ''}`
+                  : `Phân công ${selectedStaffIds.length > 0 ? `${selectedStaffIds.length} nhân viên` : ''}`
+                }
               </button>
             </div>
           </div>
@@ -1202,25 +1424,30 @@ const AdminBookings: React.FC = () => {
                   {/* Thông tin nhân viên */}
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <h4 className="text-lg font-medium text-gray-900 mb-3">Thông tin nhân viên</h4>
-                    {selectedBooking.staffId ? (
+                    {selectedBooking.assignedStaff && selectedBooking.assignedStaff.length > 0 ? (
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Số nhân viên:</span>
+                          <span className="font-medium">{selectedBooking.assignedStaff.length} nhân viên</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-600 block mb-2">Danh sách nhân viên:</span>
+                          <div className="space-y-1">
+                            {selectedBooking.assignedStaff.map((staff, index) => (
+                              <div key={index} className="flex justify-between text-sm bg-white p-2 rounded">
+                                <span>{staff.staffName}</span>
+                                <span className="text-gray-500">{staff.staffEmail || `ID: ${staff.staffId}`}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ) : selectedBooking.staffId && selectedBooking.staffName ? (
                       <div className="space-y-2">
                         <div className="flex justify-between">
                           <span className="text-gray-600">Nhân viên:</span>
                           <span className="font-medium">{selectedBooking.staffName}</span>
                         </div>
-                        {selectedBooking.assignedStaff && selectedBooking.assignedStaff.length > 0 && (
-                          <div>
-                            <span className="text-gray-600 block mb-2">Đội nhóm:</span>
-                            <div className="space-y-1">
-                              {selectedBooking.assignedStaff.map((staff, index) => (
-                                <div key={index} className="flex justify-between text-sm">
-                                  <span>{staff.staffName}</span>
-                                  <span className="text-gray-500">#{staff.staffId}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
                       </div>
                     ) : (
                       <div className="text-center py-4">
@@ -1228,6 +1455,14 @@ const AdminBookings: React.FC = () => {
                         <button
                           onClick={() => {
                             setShowDetailsModal(false);
+                            // Khởi tạo danh sách nhân viên đã được phân công
+                            if (selectedBooking.assignedStaff && selectedBooking.assignedStaff.length > 0) {
+                              setSelectedStaffIds(selectedBooking.assignedStaff.map(staff => staff.staffId));
+                            } else if (selectedBooking.staffId) {
+                              setSelectedStaffIds([selectedBooking.staffId]);
+                            } else {
+                              setSelectedStaffIds([]);
+                            }
                             setShowAssignModal(true);
                           }}
                           className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm"
@@ -1246,12 +1481,20 @@ const AdminBookings: React.FC = () => {
                         <button
                           onClick={() => {
                             setShowDetailsModal(false);
+                            // Khởi tạo danh sách nhân viên đã được phân công
+                            if (selectedBooking.assignedStaff && selectedBooking.assignedStaff.length > 0) {
+                              setSelectedStaffIds(selectedBooking.assignedStaff.map(staff => staff.staffId));
+                            } else if (selectedBooking.staffId) {
+                              setSelectedStaffIds([selectedBooking.staffId]);
+                            } else {
+                              setSelectedStaffIds([]);
+                            }
                             setShowAssignModal(true);
                           }}
                           className="px-3 py-2 bg-green-100 text-green-700 hover:bg-green-200 rounded text-sm font-medium flex items-center gap-1"
                         >
                           <UserPlusIcon className="h-4 w-4" />
-                          {selectedBooking.staffId ? 'Đổi nhân viên' : 'Phân công nhân viên'}
+                          {selectedBooking.staffId || (selectedBooking.assignedStaff && selectedBooking.assignedStaff.length > 0) ? 'Đổi nhân viên' : 'Phân công nhân viên'}
                         </button>
                       )}
                       

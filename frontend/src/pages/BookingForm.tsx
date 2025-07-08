@@ -1,4 +1,4 @@
-import { useState, FormEvent, useEffect } from 'react';
+import { useState, FormEvent, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useServiceContext } from '../context/ServiceContext';
@@ -6,6 +6,7 @@ import Card from '../components/UI/Card';
 import Button from '../components/UI/Button';
 import AddressSelector, { AddressValue } from '../components/forms/AddressSelector';
 import BookingService from '../services/booking.service';
+import PromotionService, { BestPromotionResponse } from '../services/promotion.service';
 import { formatFullAddress, getAddressNames } from '../data/vietnamAddress';
 import { CreateBookingData, BookingCreationResponse } from '../types'; // Import các kiểu dữ liệu mới
 
@@ -49,11 +50,19 @@ const BookingForm = () => {
   const [bookingSuccess, setBookingSuccess] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   
+  // State cho khuyến mãi tự động
+  const [bestPromotion, setBestPromotion] = useState<BestPromotionResponse['promotion']>(null);
+  const [promotionLoading, setPromotionLoading] = useState<boolean>(false);
+  
   // Lấy thông tin dịch vụ đã chọn
   const selectedServiceDetails = activeServices.find(service => service.id === selectedService);
   
-  // Tính tổng tiền
-  const totalPrice = selectedServiceDetails ? selectedServiceDetails.price : 0;
+  // Tính tổng tiền (trước giảm giá)
+  const originalPrice = selectedServiceDetails ? selectedServiceDetails.price : 0;
+  
+  // Tính giá cuối cùng (sau giảm giá)
+  const finalPrice = bestPromotion ? bestPromotion.finalAmount : originalPrice;
+  const discountAmount = originalPrice - finalPrice;
   
   // Format giá tiền
   const formatPrice = (price: number) => {
@@ -69,6 +78,29 @@ const BookingForm = () => {
       navigate('/login?redirect=booking');
     }
   }, [user, navigate]);
+
+  // Function tìm khuyến mãi tốt nhất cho user
+  const findBestPromotion = useCallback(async () => {
+    if (!user?.id || originalPrice <= 0) return;
+    
+    try {
+      setPromotionLoading(true);
+      const result = await PromotionService.getBestPromotionForUser(user.id, originalPrice);
+      setBestPromotion(result.promotion);
+    } catch (error) {
+      console.error('Error finding best promotion:', error);
+      setBestPromotion(null);
+    } finally {
+      setPromotionLoading(false);
+    }
+  }, [user?.id, originalPrice]);
+
+  // Tự động tìm khuyến mãi tốt nhất khi giá thay đổi
+  useEffect(() => {
+    if (user?.id && originalPrice > 0) {
+      findBestPromotion();
+    }
+  }, [user?.id, originalPrice, findBestPromotion]);
   
   // Kiểm tra form hợp lệ
   const validateForm = () => {
@@ -498,7 +530,7 @@ const BookingForm = () => {
 
                     <div className="pt-6">
                       <Button type="submit" className="w-full" disabled={isSubmitting}>
-                        {isSubmitting ? 'Đang xử lý...' : `Đặt lịch ngay - ${formatPrice(totalPrice)}`}
+                        {isSubmitting ? 'Đang xử lý...' : `Đặt lịch ngay - ${formatPrice(finalPrice)}`}
                       </Button>
                     </div>
                   </form>
@@ -534,9 +566,46 @@ const BookingForm = () => {
                         </div>
                         
                         <div className="border-t border-gray-200 pt-4 mt-4">
-                          <div className="flex justify-between">
-                            <span className="font-medium text-gray-900">Tổng cộng</span>
-                            <span className="font-medium text-gray-900">{formatPrice(totalPrice)}</span>
+                          {/* Hiển thị giá gốc */}
+                          <div className="flex justify-between mb-2">
+                            <span className="text-gray-700">Giá dịch vụ</span>
+                            <span className="text-gray-900">{formatPrice(originalPrice)}</span>
+                          </div>
+                          
+                          {/* Hiển thị khuyến mãi nếu có */}
+                          {promotionLoading && (
+                            <div className="flex justify-between mb-2 text-blue-600">
+                              <span className="text-sm">Đang tìm khuyến mãi...</span>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                            </div>
+                          )}
+                          
+                          {bestPromotion && !promotionLoading && (
+                            <div className="flex justify-between mb-2 text-green-600">
+                              <span className="text-sm flex items-center">
+                                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                                </svg>
+                                {bestPromotion.name}
+                              </span>
+                              <span className="font-medium">-{formatPrice(discountAmount)}</span>
+                            </div>
+                          )}
+                          
+                          {/* Đường kẻ phân cách */}
+                          <div className="border-t border-gray-200 pt-2">
+                            <div className="flex justify-between">
+                              <span className="font-medium text-gray-900">Tổng cộng</span>
+                              <span className={`font-bold text-lg ${bestPromotion ? 'text-green-600' : 'text-gray-900'}`}>
+                                {formatPrice(finalPrice)}
+                              </span>
+                            </div>
+                            
+                            {bestPromotion && (
+                              <div className="text-xs text-green-600 text-right mt-1">
+                                Đã áp dụng mã: {bestPromotion.code}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>

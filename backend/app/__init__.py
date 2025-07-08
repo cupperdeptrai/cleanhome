@@ -30,15 +30,6 @@ def create_app(config_name=None):
     # Setup logging
     setup_logging(app)
     
-    # Add CORS headers for all responses
-    @app.after_request
-    def after_request(response):
-        response.headers.add('Access-Control-Allow-Origin', 'http://localhost:5173')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-        response.headers.add('Access-Control-Allow-Credentials', 'true')
-        return response
-    
     # Register blueprints
     register_blueprints(app)
     

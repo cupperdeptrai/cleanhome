@@ -21,10 +21,10 @@ export interface AdminStats {
  * Interface cho assigned staff trong booking
  */
 export interface AssignedStaff {
-  id: string;
   staffId: string;
   staffName: string;
-  assignedAt: string;
+  staffEmail?: string;
+  assignedAt?: string;
   notes?: string;
 }
 
@@ -88,22 +88,7 @@ export interface AdminUser {
   updatedAt: string;
 }
 
-/**
- * =====================================================================
- * Interface cho staff admin - ĐÃ CẬP NHẬT ĐỒNG BỘ THỐNG KÊ
- * =====================================================================
- * 
- * THAY ĐỔI CHÍNH:
- * ❌ ĐÃ XÓA: trường 'rating' - Không còn đánh giá nhân viên
- * ✅ ĐÃ THÊM: assignedServices[] - Danh sách dịch vụ được phân công
- * ✅ CẬP NHẬT: totalBookings, completedBookings - Thống kê đồng bộ từ backend
- * 
- * DỮ LIỆU ĐỒNG BỘ:
- * - totalBookings: Tổng số đơn hàng (từ cả Booking.staff_id và BookingStaff)
- * - completedBookings: Số đơn đã hoàn thành (status='completed')
- * - assignedServices: Danh sách dịch vụ được phân công (distinct từ bookings)
- * =====================================================================
- */
+
 export interface AdminStaff {
   id: string;
   name: string;
@@ -158,9 +143,14 @@ export class AdminService {
       throw error;
     }
   }  /**
-   * Lấy danh sách booking cho admin
+   * Lấy danh sách booking cho admin với phân trang
    */
-  static async getBookings(): Promise<AdminBooking[]> {
+  static async getBookings(page: number = 1, limit: number = 30): Promise<{
+    bookings: AdminBooking[];
+    total: number;
+    totalPages: number;
+    currentPage: number;
+  }> {
     try {
       // Auto-refresh token nếu cần
       await this.refreshTokenIfNeeded();
@@ -168,7 +158,7 @@ export class AdminService {
       const headers = this.getAuthHeaders();
       // Thêm cache-busting để tránh cache
       const timestamp = Date.now();
-      const apiUrl = `${this.API_BASE}/bookings?_t=${timestamp}`;
+      const apiUrl = `${this.API_BASE}/bookings?page=${page}&limit=${limit}&_t=${timestamp}`;
       
       console.log('📋 AdminService.getBookings - Calling API:', apiUrl);
       console.log('📋 AdminService.getBookings - Headers:', headers);
@@ -203,9 +193,18 @@ export class AdminService {
         throw new Error('Invalid JSON response from server');
       }
       
-      // Backend trả về {data: [...]} hoặc array trực tiếp
-      const bookings = Array.isArray(data) ? data : (data.data || []);
-      console.log('📋 AdminService.getBookings - Extracted bookings count:', bookings.length);
+      // Backend trả về {data: [...], total: number, page: number, totalPages: number}
+      const bookings = data.data || [];
+      const total = data.total || 0;
+      const totalPages = data.totalPages || 1;
+      const currentPage = data.page || 1;
+      
+      console.log('📋 AdminService.getBookings - Pagination info:', {
+        bookings: bookings.length,
+        total,
+        totalPages,
+        currentPage
+      });
       
       // Log sample booking để debug
       if (bookings.length > 0) {
@@ -219,7 +218,12 @@ export class AdminService {
         });
       }
       
-      return bookings;
+      return {
+        bookings,
+        total,
+        totalPages,
+        currentPage
+      };
     } catch (error) {
       console.error('❌ AdminService.getBookings - Error:', error);
       throw error;

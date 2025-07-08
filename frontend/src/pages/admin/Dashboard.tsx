@@ -25,14 +25,14 @@ const AdminDashboard: React.FC = () => {
       setError(null);
 
       // Tải thống kê và booking gần đây song song
-      const [statsData, bookingsData] = await Promise.all([
+      const [statsData, bookingsResponse] = await Promise.all([
         AdminService.getStats(),
-        AdminService.getBookings()
+        AdminService.getBookings(1, 5) // Lấy 5 booking đầu tiên
       ]);
 
       setStats(statsData);
-      // Lấy 5 booking gần nhất
-      setRecentBookings(bookingsData.slice(0, 5));
+      // Lấy bookings từ response
+      setRecentBookings(bookingsResponse.bookings || []);
 
     } catch (error) {
       console.error('Lỗi khi tải dữ liệu dashboard:', error);

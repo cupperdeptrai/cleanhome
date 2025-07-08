@@ -122,6 +122,20 @@ def get_admin_bookings():
                         service_name = service.name
                         service_id = str(first_item.service_id)
             
+            # Lấy thông tin về nhiều nhân viên được phân công (từ bảng booking_staff)
+            assigned_staff_list = []
+            if booking.assigned_staff:
+                for booking_staff in booking.assigned_staff:
+                    staff_user = User.query.get(booking_staff.staff_id)
+                    if staff_user:
+                        assigned_staff_list.append({
+                            'staffId': str(booking_staff.staff_id),
+                            'staffName': staff_user.name,
+                            'staffEmail': staff_user.email,
+                            'assignedAt': booking_staff.assigned_at.isoformat() if booking_staff.assigned_at else None,
+                            'notes': booking_staff.notes
+                        })
+            
             result.append({
                 'id': str(booking.id),
                 'bookingCode': booking.booking_code,
@@ -147,7 +161,10 @@ def get_admin_bookings():
                 'notes': booking.notes,
                 'cancelReason': booking.cancel_reason,
                 'createdAt': booking.created_at.isoformat() if booking.created_at else None,
-                'updatedAt': booking.updated_at.isoformat() if booking.updated_at else None
+                'updatedAt': booking.updated_at.isoformat() if booking.updated_at else None,
+                # Thông tin về các nhân viên được phân công (nhiều nhân viên)
+                'assignedStaff': assigned_staff_list,
+                'staffCount': len(assigned_staff_list)
             })
         
         return jsonify({

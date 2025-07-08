@@ -35,7 +35,7 @@ def init_extensions(app):
     
     # Khởi tạo CORS với cấu hình chi tiết
     cors.init_app(app, 
-        origins=app.config.get('CORS_ORIGINS', ['http://localhost:5173']),
+        origins=app.config.get('CORS_ORIGINS', ['http://localhost:5173', 'http://localhost:5174']),
         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         allow_headers=["Content-Type", "Authorization", "Access-Control-Allow-Credentials"],
         supports_credentials=True,
